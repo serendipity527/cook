@@ -3,10 +3,13 @@ import { z } from 'zod';
 export const PREP_ITEM_MAX = 20;
 export const STEP_MAX = 40;
 
-export const PrepItemSchema = z.object({
-  id: z.string().min(1),
+export const PrepInputSchema = z.object({
   text: z.string().min(1).max(80),
   tip: z.string().max(120).optional(),
+});
+
+export const PrepItemSchema = PrepInputSchema.extend({
+  id: z.string().min(1),
 });
 
 const stepFields = {
@@ -79,6 +82,7 @@ export const RecipeSchema = z.object({
   deletedAt: z.number().int().nonnegative().optional(),
 });
 
+export type PrepInput = z.infer<typeof PrepInputSchema>;
 export type PrepItem = z.infer<typeof PrepItemSchema>;
 export type Step = z.infer<typeof StepSchema>;
 export type StepInput = z.infer<typeof StepInputSchema>;

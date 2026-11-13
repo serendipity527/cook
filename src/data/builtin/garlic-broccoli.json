@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "r_garlic_broccoli",
+  "title": "蒜蓉西兰花",
+  "subtitle": "清爽快手，十分钟上桌",
+  "servings": 2,
+  "tags": ["快手菜", "素菜", "清淡"],
+  "source": "builtin",
+  "estimatedMinutes": 12,
+  "prep": [
+    { "id": "p1", "text": "西兰花 1 颗，切小朵，盐水泡 10 分钟" },
+    { "id": "p2", "text": "大蒜 4 瓣，切末" },
+    { "id": "p3", "text": "调料汁：蚝油 10ml、生抽 5ml、糖 2g、清水 20ml" }
+  ],
+  "steps": [
+    {
+      "id": "s1",
+      "text": "烧一锅水，水开后加少许盐和油",
+      "speak": "烧水，加盐和油",
+      "kind": "judgment",
+      "suggestRange": [120, 300]
+    },
+    {
+      "id": "s2",
+      "text": "下西兰花焯 60 秒，捞出沥干",
+      "speak": "下西兰花，焯一分钟",
+      "kind": "timed",
+      "durationSec": 60
+    },
+    {
+      "id": "s3",
+      "text": "热锅倒油，小火炒香蒜末",
+      "speak": "热油，炒香蒜末",
+      "kind": "timed",
+      "durationSec": 25,
+      "heat": "low"
+    },
+    {
+      "id": "s4",
+      "text": "下西兰花和调料汁，大火翻炒均匀",
+      "speak": "下西兰花和料汁，大火翻炒",
+      "kind": "timed",
+      "durationSec": 60,
+      "heat": "high"
+    },
+    {
+      "id": "s5",
+      "text": "汤汁收浓，关火装盘",
+      "speak": "收汁，装盘",
+      "kind": "judgment",
+      "suggestRange": [10, 20]
+    }
+  ],
+  "createdAt": 0,
+  "updatedAt": 0
+}

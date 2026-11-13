@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "id": "r_cola_wings",
+  "title": "可乐鸡翅",
+  "subtitle": "甜咸浓汁，配米饭最合适",
+  "servings": 2,
+  "tags": ["家常", "下饭", "炖菜"],
+  "source": "builtin",
+  "estimatedMinutes": 40,
+  "prep": [
+    { "id": "p1", "text": "鸡翅中 8 个，两面各划两刀" },
+    { "id": "p2", "text": "姜 3 片，小葱 1 根切段" },
+    { "id": "p3", "text": "可乐 330ml、生抽 15ml、料酒 10ml 备好" }
+  ],
+  "steps": [
+    {
+      "id": "s1",
+      "text": "鸡翅冷水下锅，加姜片和料酒，水开后煮 2 分钟",
+      "speak": "鸡翅冷水下锅，焯两分钟",
+      "kind": "timed",
+      "durationSec": 180
+    },
+    {
+      "id": "s2",
+      "text": "捞出鸡翅，洗净沥干",
+      "speak": "捞出鸡翅，洗净沥干",
+      "kind": "judgment"
+    },
+    {
+      "id": "s3",
+      "text": "锅中少油，鸡翅煎至两面金黄",
+      "speak": "鸡翅煎至两面金黄",
+      "kind": "timed",
+      "durationSec": 300
+    },
+    {
+      "id": "s4",
+      "text": "倒入可乐、生抽和姜片，大火烧开",
+      "speak": "倒入可乐和生抽，烧开",
+      "kind": "timed",
+      "durationSec": 120
+    },
+    {
+      "id": "s5",
+      "text": "转小火，加盖焖 15 分钟",
+      "speak": "转小火，焖十五分钟",
+      "kind": "timed",
+      "durationSec": 900,
+      "heat": "low"
+    },
+    {
+      "id": "s6",
+      "text": "开盖转大火收汁，不断翻动裹匀",
+      "speak": "大火收汁，翻动裹匀",
+      "kind": "timed",
+      "durationSec": 180,
+      "heat": "high"
+    },
+    {
+      "id": "s7",
+      "text": "汤汁浓稠，关火装盘",
+      "speak": "汤汁浓稠，关火装盘",
+      "kind": "judgment",
+      "suggestRange": [10, 30]
+    }
+  ],
+  "createdAt": 0,
+  "updatedAt": 0
+}

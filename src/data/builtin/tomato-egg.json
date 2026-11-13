@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "id": "r_tomato_egg",
+  "title": "番茄炒蛋",
+  "subtitle": "两个人一顿，酸甜下饭",
+  "servings": 2,
+  "tags": ["快手菜", "家常", "下饭"],
+  "source": "builtin",
+  "estimatedMinutes": 15,
+  "prep": [
+    { "id": "p1", "text": "番茄 2 个，切滚刀块" },
+    { "id": "p2", "text": "鸡蛋 3 个，加一小撮盐打散" },
+    { "id": "p3", "text": "小葱 1 根，切葱花" },
+    { "id": "p4", "text": "调料汁：盐 2g、糖 3g、生抽 5ml、清水 15ml" }
+  ],
+  "steps": [
+    {
+      "id": "s1",
+      "text": "锅中倒油，中火烧热",
+      "speak": "中火热油",
+      "kind": "timed",
+      "durationSec": 45,
+      "heat": "medium"
+    },
+    {
+      "id": "s2",
+      "text": "倒入蛋液，边缘凝固后快速划散",
+      "speak": "倒入蛋液，快速划散",
+      "kind": "timed",
+      "durationSec": 40,
+      "heat": "medium"
+    },
+    {
+      "id": "s3",
+      "text": "鸡蛋八成熟，盛出备用",
+      "speak": "鸡蛋八成熟，盛出",
+      "kind": "judgment",
+      "suggestRange": [10, 20]
+    },
+    {
+      "id": "s4",
+      "text": "补一点油，下番茄中火翻炒出汁",
+      "speak": "下番茄，炒出汁",
+      "kind": "timed",
+      "durationSec": 90
+    },
+    {
+      "id": "s5",
+      "text": "倒入调料汁，翻匀",
+      "speak": "倒入料汁，翻匀",
+      "kind": "timed",
+      "durationSec": 30
+    },
+    {
+      "id": "s6",
+      "text": "倒回鸡蛋，快速翻匀，撒葱花",
+      "speak": "倒回鸡蛋，翻匀出锅",
+      "kind": "timed",
+      "durationSec": 25
+    },
+    {
+      "id": "s7",
+      "text": "关火装盘",
+      "speak": "关火装盘",
+      "kind": "judgment"
+    }
+  ],
+  "createdAt": 0,
+  "updatedAt": 0
+}
