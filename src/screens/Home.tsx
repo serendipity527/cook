@@ -1,31 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight, Copy, PenLine, Plus, Settings, Sparkles } from 'lucide-react';
+import { ChefHat, ChevronRight, Copy, PenLine, Plus, Search, Sparkles } from 'lucide-react';
 import { forkBuiltin, getRecipe, listAllRecipes, listSessions } from '@/data/repo';
+import { buildLibrary, matchesSearch } from '@/lib/library';
+import { formatAge, formatAgeLabel } from '@/lib/format';
 import { useCook } from '@/runtime/CookProvider';
 import { useAppStore } from '@/store/useAppStore';
 import { ActionSheet, type ActionSheetAction } from '@/components/ActionSheet';
 import { ConfirmSheet } from '@/components/ConfirmSheet';
-import { RecipeCard } from '@/components/RecipeCard';
+import { RecipeRow } from '@/components/RecipeRow';
 import { useToast } from '@/components/ToastProvider';
-
-function formatAge(ageMs: number): string {
-  if (ageMs < 60 * 60 * 1000) {
-    return '不到 1 小时';
-  }
-
-  if (ageMs < 24 * 60 * 60 * 1000) {
-    return `${Math.round(ageMs / (60 * 60 * 1000))} 小时`;
-  }
-
-  return `${Math.round(ageMs / (24 * 60 * 60 * 1000))} 天`;
-}
 
 export function Home() {
   const navigate = useAppStore((state) => state.navigate);
   const resetTo = useAppStore((state) => state.resetTo);
   const { resumeInfo, resume, discardResume } = useCook();
   const { showToast } = useToast();
+  const [query, setQuery] = useState('');
   const [newOpen, setNewOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   const [resumeConfirmOpen, setResumeConfirmOpen] = useState(false);
@@ -34,33 +25,14 @@ export function Home() {
   const sessionRows = useLiveQuery(() => listSessions(), []);
   const recipes = useMemo(() => recipeRows ?? [], [recipeRows]);
   const sessions = useMemo(() => sessionRows ?? [], [sessionRows]);
-
+  const library = useMemo(() => buildLibrary(recipes, sessions), [recipes, sessions]);
+  const visibleLibrary = useMemo(
+    () => library.filter((entry) => matchesSearch(entry.recipe, query)),
+    [library, query],
+  );
   const mine = recipes.filter((recipe) => recipe.source !== 'builtin');
   const builtins = recipes.filter((recipe) => recipe.source === 'builtin');
-
-  const recent = useMemo(() => {
-    const byId = new Map(recipes.map((recipe) => [recipe.id, recipe]));
-    const seen = new Set<string>();
-    const result = [];
-
-    for (const session of sessions) {
-      if (seen.has(session.recipeId)) {
-        continue;
-      }
-
-      const recipe = byId.get(session.recipeId);
-      if (recipe) {
-        seen.add(session.recipeId);
-        result.push(recipe);
-      }
-
-      if (result.length === 3) {
-        break;
-      }
-    }
-
-    return result;
-  }, [recipes, sessions]);
+  const showGuide = mine.length === 0 && query.trim() === '';
 
   useEffect(() => {
     if (!resumeInfo) {
@@ -161,20 +133,16 @@ export function Home() {
   }));
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-8 px-5 pb-12 pt-10">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium tracking-[0.3em] text-[var(--accent)]">KAIHUO</p>
-          <h1 className="mt-1 text-4xl font-bold tracking-tight">开火</h1>
-          <p className="mt-1 text-sm text-[var(--muted)]">手上有油也能用的做饭助手</p>
-        </div>
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-5 pb-8 pt-6">
+      <header className="flex items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold tracking-tight">开火</h1>
         <button
           type="button"
           onClick={() => navigate({ name: 'studio' })}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--muted)]"
-          aria-label="管理与设置"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--muted)]"
+          aria-label="我的厨房"
         >
-          <Settings size={19} />
+          <ChefHat size={20} />
         </button>
       </header>
 
@@ -196,9 +164,7 @@ export function Home() {
             >
               {recipeMissing
                 ? '上次的菜谱已删除'
-                : resumeInfo.fresh
-                  ? '上次没做完'
-                  : `上次没做完 · ${formatAge(resumeInfo.ageMs)}前`}
+                : `上次没做完 · ${formatAgeLabel(resumeInfo.ageMs)}`}
             </span>
             <span className="mt-1 block truncate text-lg font-semibold">
               {recipeMissing
@@ -214,80 +180,72 @@ export function Home() {
         </button>
       ) : null}
 
-      <button
-        type="button"
-        onClick={() => navigate({ name: 'chat' })}
-        className="flex w-full items-center gap-4 rounded-3xl border border-[var(--accent)]/25 bg-[var(--accent)]/5 p-5 text-left transition active:scale-[0.995]"
-      >
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)]/15 text-[var(--accent-2)]">
-          <Sparkles size={20} />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-base font-semibold">和 AI 说一道菜</span>
-          <span className="mt-0.5 block text-xs text-[var(--muted)]">
-            口述做法，自动整理成步骤和倒计时
+      {showGuide ? (
+        <div className="flex items-center gap-3 rounded-3xl border border-[var(--accent)]/25 bg-[var(--accent)]/5 p-5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)]/15 text-[var(--accent-2)]">
+            <Sparkles size={18} />
           </span>
-        </span>
-        <ChevronRight className="shrink-0 text-[var(--muted)]" />
-      </button>
-
-      {recent.length > 0 ? (
-        <section>
-          <h2 className="mb-3 text-sm font-medium text-[var(--muted)]">最近做过</h2>
-          <div className="scrollbar-hide -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
-            {recent.map((recipe) => (
-              <div key={recipe.id} className="w-72 shrink-0">
-                <RecipeCard
-                  recipe={recipe}
-                  onClick={() => navigate({ name: 'detail', recipeId: recipe.id })}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <section>
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-medium text-[var(--muted)]">我的菜谱</h2>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">第一次用开火？</span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-[var(--muted)]">
+              和 AI 说一道菜，或直接试下面的内置菜。
+            </span>
+          </span>
           <button
             type="button"
-            onClick={() => setNewOpen(true)}
-            className="flex min-h-11 items-center gap-1 rounded-full bg-white/5 px-3 text-xs text-[var(--accent-2)]"
+            onClick={() => navigate({ name: 'chat' })}
+            className="min-h-12 shrink-0 rounded-xl bg-[var(--accent)] px-4 text-sm font-semibold text-[#201008]"
           >
-            <Plus size={14} />
-            新建
+            和 AI 说
           </button>
         </div>
-        {mine.length > 0 ? (
-          <div className="space-y-3">
-            {mine.map((recipe) => (
-              <RecipeCard
-                key={recipe.id}
-                recipe={recipe}
-                onClick={() => navigate({ name: 'detail', recipeId: recipe.id })}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-3xl border border-dashed border-white/10 p-5 text-sm leading-relaxed text-[var(--muted)]">
-            还没有自己的菜谱。先从下面的内置菜谱开始，熟悉一下节奏。
-          </div>
-        )}
-      </section>
+      ) : null}
 
-      <section>
-        <h2 className="mb-3 text-sm font-medium text-[var(--muted)]">内置菜谱</h2>
-        <div className="space-y-3">
-          {builtins.map((recipe) => (
-            <RecipeCard
-              key={recipe.id}
-              recipe={recipe}
-              onClick={() => navigate({ name: 'detail', recipeId: recipe.id })}
+      <div className="relative">
+        <Search
+          size={18}
+          className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[var(--muted)]"
+        />
+        <input
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          aria-label="搜索菜谱"
+          placeholder="搜索菜谱…"
+          className="min-h-12 w-full rounded-2xl bg-[var(--surface)] pr-4 pl-11 text-base outline-none placeholder:text-[var(--muted)]"
+        />
+      </div>
+
+      {visibleLibrary.length > 0 ? (
+        <div className="space-y-1.5">
+          {visibleLibrary.map((entry) => (
+            <RecipeRow
+              key={entry.recipe.id}
+              recipe={entry.recipe}
+              lastCookedAt={entry.lastCookedAt}
+              onOpen={() => navigate({ name: 'detail', recipeId: entry.recipe.id })}
+              onFire={
+                entry.lastCookedAt
+                  ? () => navigate({ name: 'prep', recipeId: entry.recipe.id })
+                  : undefined
+              }
             />
           ))}
         </div>
-      </section>
+      ) : (
+        <div className="rounded-3xl border border-dashed border-white/10 p-5 text-sm leading-relaxed text-[var(--muted)]">
+          没有匹配的菜谱。
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setNewOpen(true)}
+        className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 text-sm text-[var(--muted)]"
+      >
+        <Plus size={16} />
+        新建一道菜
+      </button>
 
       <footer className="pt-2 text-center text-xs text-[var(--muted)]">
         数据存在这台设备 · 断网也能做菜

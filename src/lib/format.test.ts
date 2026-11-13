@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatEstimatedMinutes, formatRange, formatSeconds } from './format';
+import {
+  formatAge,
+  formatAgeLabel,
+  formatEstimatedMinutes,
+  formatRange,
+  formatSeconds,
+} from './format';
 
 describe('formatSeconds', () => {
   it('shows seconds below one minute', () => {
@@ -34,5 +40,21 @@ describe('formatEstimatedMinutes', () => {
 
   it('prefixes the estimate', () => {
     expect(formatEstimatedMinutes(15)).toBe('约 15 分钟');
+  });
+});
+
+describe('formatAge', () => {
+  it('buckets hours and days without a direction', () => {
+    expect(formatAge(30 * 60 * 1000)).toBe('不到 1 小时');
+    expect(formatAge(3 * 60 * 60 * 1000)).toBe('3 小时');
+    expect(formatAge(3 * 24 * 60 * 60 * 1000)).toBe('3 天');
+  });
+});
+
+describe('formatAgeLabel', () => {
+  it('marks fresh cooks as just now and older ones with 前', () => {
+    expect(formatAgeLabel(30 * 60 * 1000)).toBe('刚刚');
+    expect(formatAgeLabel(3 * 60 * 60 * 1000)).toBe('3 小时前');
+    expect(formatAgeLabel(3 * 24 * 60 * 60 * 1000)).toBe('3 天前');
   });
 });

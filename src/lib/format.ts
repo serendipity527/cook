@@ -18,3 +18,25 @@ export function formatRange(range: [number, number]): string {
 export function formatEstimatedMinutes(minutes?: number): string | null {
   return minutes ? `约 ${minutes} 分钟` : null;
 }
+
+/** “3 天”，用于“已经过了 3 天”这类句子。 */
+export function formatAge(ageMs: number): string {
+  if (ageMs < 60 * 60 * 1000) {
+    return '不到 1 小时';
+  }
+
+  if (ageMs < 24 * 60 * 60 * 1000) {
+    return `${Math.round(ageMs / (60 * 60 * 1000))} 小时`;
+  }
+
+  return `${Math.round(ageMs / (24 * 60 * 60 * 1000))} 天`;
+}
+
+/** “3 天前”，用于独立的时间标记。 */
+export function formatAgeLabel(ageMs: number): string {
+  if (ageMs < 60 * 60 * 1000) {
+    return '刚刚';
+  }
+
+  return `${formatAge(ageMs)}前`;
+}
