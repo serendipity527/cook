@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="开火">
+  <defs>
+    <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFC24B" />
+      <stop offset="1" stop-color="#FF5A1F" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="#0B0F14" />
+  <path
+    d="M256 88c14 62 2 96-24 126-20 24-44 42-44 82 0 48 38 84 86 84s86-36 86-84c0-48-28-76-54-110-12-16-22-34-26-58-4-16-8-28-24-40z"
+    fill="url(#flame)"
+  />
+  <path
+    d="M258 214c7 26 0 46-15 62-12 14-24 27-24 47 0 26 20 47 46 47s46-21 46-47c0-26-16-43-31-62-10-12-18-28-22-47z"
+    fill="#FFE3B8"
+    opacity=".92"
+  />
+</svg>
