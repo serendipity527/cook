@@ -1,5 +1,8 @@
-import { isTimedStep } from '@shared/schema';
+import { useState } from 'react';
+import { isTimedStep, type Recipe } from '@shared/schema';
+import { applyDurationSuggestions, suggestDurations } from '@/lib/calibration';
 import { formatSeconds } from '@/lib/format';
+import { saveRecipe } from '@/data/repo';
 import { useCook } from '@/runtime/CookProvider';
 import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
@@ -7,18 +10,36 @@ import { BigButton } from '@/components/BigButton';
 export function Done() {
   const { state, begin, reset } = useCook();
   const navigate = useAppStore((store) => store.navigate);
+  const [updatedRecipe, setUpdatedRecipe] = useState<Recipe | null>(null);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   if (!state || state.phase !== 'done') {
     return null;
   }
 
+  const recipe = updatedRecipe ?? state.recipe;
+  const suggestions = recipe.source === 'builtin' ? [] : suggestDurations(recipe, state.logs);
   const endedAt = state.endedAt ?? Date.now();
   const actualTotal = Math.max(0, Math.round((endedAt - state.startedAt) / 1000));
-  const plannedTotal = state.recipe.steps.reduce(
+  const plannedTotal = recipe.steps.reduce(
     (total, step) => total + (step.durationSec ?? 0),
     0,
   );
   const logByStep = new Map(state.logs.map((log) => [log.stepId, log]));
+
+  const handleCalibrate = async () => {
+    setSaveState('saving');
+
+    try {
+      const updated = applyDurationSuggestions(state.recipe, suggestions);
+      await saveRecipe(updated);
+      setUpdatedRecipe(updated);
+      setSaveState('saved');
+    } catch (error) {
+      console.error('[kaihuo] failed to calibrate recipe', error);
+      setSaveState('error');
+    }
+  };
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-10 pt-12">
@@ -38,10 +59,47 @@ export function Done() {
         <Stat label="计划用时" value={plannedTotal > 0 ? formatSeconds(plannedTotal) : '—'} />
       </section>
 
+      {suggestions.length > 0 ? (
+        <section className="mt-6 rounded-3xl border border-[var(--accent-2)]/30 bg-[var(--accent-2)]/5 p-5">
+          <h2 className="text-sm font-medium text-[var(--accent-2)]">这次有些步骤比计划慢</h2>
+          <ul className="mt-3 space-y-2">
+            {suggestions.map((suggestion) => {
+              const index = recipe.steps.findIndex((step) => step.id === suggestion.stepId);
+
+              return (
+                <li
+                  key={suggestion.stepId}
+                  className="flex items-start justify-between gap-3 text-sm"
+                >
+                  <span className="min-w-0 text-[var(--muted)]">第 {index + 1} 步</span>
+                  <span className="shrink-0 tabular-nums">
+                    {formatSeconds(suggestion.plannedSec)} → {formatSeconds(suggestion.nextSec)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <BigButton
+            className="mt-4"
+            onClick={() => void handleCalibrate()}
+            disabled={saveState === 'saving'}
+          >
+            {saveState === 'saving' ? '保存中…' : '用实测更新菜谱'}
+          </BigButton>
+          {saveState === 'error' ? (
+            <p className="mt-2 text-xs text-[var(--danger)]">更新失败，菜谱没有改动。</p>
+          ) : null}
+        </section>
+      ) : null}
+
+      {saveState === 'saved' ? (
+        <p className="mt-4 text-center text-xs text-[var(--ok)]">已更新，下次做会更准。</p>
+      ) : null}
+
       <section className="mt-8">
         <h2 className="text-sm font-medium text-[var(--muted)]">步骤回顾</h2>
         <ul className="mt-3 space-y-2">
-          {state.recipe.steps.map((step, index) => {
+          {recipe.steps.map((step, index) => {
             const log = logByStep.get(step.id);
             const planned = isTimedStep(step) ? step.durationSec : undefined;
             const deviation = log && planned ? Math.round(log.actualSec - planned) : 0;
@@ -86,7 +144,7 @@ export function Done() {
       <div className="mt-auto space-y-3 pt-8">
         <BigButton
           onClick={() => {
-            begin(state.recipe);
+            begin(recipe);
             navigate({ name: 'cook' });
           }}
         >
