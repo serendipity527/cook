@@ -13,6 +13,7 @@ import { requestPersistence, saveRecipe } from '@/data/repo';
 import { formatSeconds } from '@/lib/format';
 import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
+import { DraftEditor } from '@/components/DraftEditor';
 
 const example =
   '番茄炒蛋，两个人吃。番茄两个切块，鸡蛋三个加盐打散。先热锅倒油，倒蛋液炒到凝固盛出，再炒番茄出汁，倒回鸡蛋，加盐糖翻匀出锅。';
@@ -23,6 +24,7 @@ export function StudioChat() {
   const [messages, setMessages] = useState<string[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editedSpec, setEditedSpec] = useState<DraftSpec | null>(null);
 
   const { object, submit, isLoading, error, stop, clear } = useObject<
     typeof DraftSpecSchema,
@@ -31,9 +33,23 @@ export function StudioChat() {
   >({
     api: '/api/recipe/draft',
     schema: DraftSpecSchema,
+    onFinish: ({ object: finished, error: finishError }) => {
+      if (finishError) {
+        return;
+      }
+
+      const parsed = DraftSpecSchema.safeParse(finished);
+
+      if (parsed.success) {
+        setEditedSpec(parsed.data);
+      }
+    },
   });
 
-  const parsedDraft = useMemo(() => DraftSpecSchema.safeParse(object), [object]);
+  const parsedDraft = useMemo(
+    () => DraftSpecSchema.safeParse(editedSpec ?? object),
+    [editedSpec, object],
+  );
   const prep = (object?.prep ?? []).filter((item) => Boolean(item?.text));
   const steps = (object?.steps ?? []).filter((step) => Boolean(step?.text));
   const questions = (object?.questions ?? []).filter(
@@ -51,17 +67,16 @@ export function StudioChat() {
       return;
     }
 
-    const current = DraftSpecSchema.safeParse(object);
-    setMessages((current) => [...current, text]);
+    const current = DraftSpecSchema.safeParse(editedSpec ?? object);
+    setMessages((currentMessages) => [...currentMessages, text]);
+    setEditedSpec(null);
     setInput('');
     setSaveError(null);
     submit({ draft: current.success ? current.data : null, message: text, locale: 'zh-CN' });
   };
 
   const handleSave = async () => {
-    const parsed = DraftSpecSchema.safeParse(object);
-
-    if (!parsed.success) {
+    if (!parsedDraft.success) {
       setSaveError('菜谱还不完整，再补充一句，或者继续生成。');
       return;
     }
@@ -70,7 +85,7 @@ export function StudioChat() {
     setSaveError(null);
 
     try {
-      const recipe = normalizeDraft(parsed.data);
+      const recipe = normalizeDraft(parsedDraft.data);
       await saveRecipe(recipe);
       void requestPersistence().catch(() => undefined);
       navigate({ name: 'detail', recipeId: recipe.id });
@@ -85,6 +100,7 @@ export function StudioChat() {
     stop();
     clear();
     setMessages([]);
+    setEditedSpec(null);
     setInput('');
     setSaveError(null);
   };
@@ -161,7 +177,9 @@ export function StudioChat() {
         </section>
       ) : null}
 
-      {object ? (
+      {editedSpec && !isLoading ? (
+        <DraftEditor spec={editedSpec} onChange={setEditedSpec} />
+      ) : object ? (
         <section className="mt-6 rounded-3xl bg-[var(--surface)] p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -217,19 +235,20 @@ export function StudioChat() {
             </div>
           ) : null}
 
-          {questions.length > 0 ? (
-            <div className="mt-5 rounded-2xl bg-[var(--accent-2)]/10 p-4">
-              <p className="text-xs font-medium text-[var(--accent-2)]">还可以补充</p>
-              <ul className="mt-2 space-y-1.5">
-                {questions.map((question) => (
-                  <li key={question} className="text-sm leading-relaxed text-[var(--text)]">
-                    · {question}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
         </section>
+      ) : null}
+
+      {questions.length > 0 ? (
+        <div className="mt-5 rounded-2xl bg-[var(--accent-2)]/10 p-4">
+          <p className="text-xs font-medium text-[var(--accent-2)]">还可以补充</p>
+          <ul className="mt-2 space-y-1.5">
+            {questions.map((question) => (
+              <li key={question} className="text-sm leading-relaxed text-[var(--text)]">
+                · {question}
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)] to-transparent">
