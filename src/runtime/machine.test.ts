@@ -6,6 +6,7 @@ import {
   prepareCookState,
   reconcileAfterRestore,
   remainingMs,
+  stepElapsedMs,
   toSession,
   type CookEvent,
   type CookState,
@@ -138,6 +139,44 @@ describe('timed step lifecycle', () => {
     const state = started();
     expect(cookReducer(state, { type: 'RESUME', now: 2000 })).toBe(state);
   });
+
+  it('extends a running timer', () => {
+    const state = send(started(1000), { type: 'EXTEND_TIME', now: 2000, seconds: 30 });
+
+    expect(state.stepState).toBe('running');
+    expect(state.timerEndAt).toBe(41000);
+    expect(remainingMs(state, 2000)).toBe(39000);
+  });
+
+  it('extends a paused timer', () => {
+    const paused = send(started(1000), { type: 'PAUSE', now: 4000 });
+    const state = send(paused, { type: 'EXTEND_TIME', now: 5000, seconds: 30 });
+
+    expect(state.stepState).toBe('paused');
+    expect(state.pausedRemainingMs).toBe(37000);
+  });
+
+  it('restarts a finished timer for the extension', () => {
+    const awaiting = send(started(1000), { type: 'TIMER_DONE', now: 11000 });
+    const state = send(awaiting, { type: 'EXTEND_TIME', now: 12000, seconds: 30 });
+
+    expect(state.stepState).toBe('running');
+    expect(state.timerEndAt).toBe(42000);
+    expect(remainingMs(state, 12000)).toBe(30000);
+  });
+
+  it('ignores EXTEND_TIME on a manual step', () => {
+    const manual = send(started(1000), { type: 'NEXT', now: 2000 });
+    expect(cookReducer(manual, { type: 'EXTEND_TIME', now: 3000, seconds: 30 })).toBe(manual);
+  });
+
+  it('ignores a stale TIMER_DONE after an extension', () => {
+    const extended = send(started(1000), { type: 'EXTEND_TIME', now: 5000, seconds: 30 });
+    const state = send(extended, { type: 'TIMER_DONE', now: 11000 });
+
+    expect(state.stepState).toBe('running');
+    expect(state.timerEndAt).toBe(41000);
+  });
 });
 
 describe('advancing steps', () => {
@@ -161,6 +200,52 @@ describe('advancing steps', () => {
   it('marks a skipped step', () => {
     const state = send(started(1000), { type: 'NEXT', now: 3000, skipped: true });
     expect(state.logs[0]?.skipped).toBe(true);
+  });
+
+  it('undoes a skip with the original remaining time', () => {
+    const before = started(1000);
+    const skipped = send(before, { type: 'NEXT', now: 3000, skipped: true });
+    const restored = cookReducer(skipped, {
+      type: 'UNDO_SKIP',
+      saved: before,
+      savedRemainingMs: 8000,
+      now: 5000,
+    });
+
+    expect(restored.stepIndex).toBe(0);
+    expect(restored.logs).toEqual([]);
+    expect(restored.stepState).toBe('running');
+    expect(restored.timerEndAt).toBe(13000);
+    expect(remainingMs(restored, 5000)).toBe(8000);
+  });
+
+  it('undoes a skip from a paused step', () => {
+    const paused = send(started(1000), { type: 'PAUSE', now: 4000 });
+    const skipped = send(paused, { type: 'NEXT', now: 5000, skipped: true });
+    const restored = cookReducer(skipped, {
+      type: 'UNDO_SKIP',
+      saved: paused,
+      savedRemainingMs: 7000,
+      now: 8000,
+    });
+
+    expect(restored.stepState).toBe('paused');
+    expect(restored.pausedRemainingMs).toBe(7000);
+    expect(restored.pausedAt).toBe(8000);
+  });
+
+  it('undoes a skip from a manual step without counting the snackbar time', () => {
+    const manual = send(started(1000), { type: 'NEXT', now: 2000 });
+    const skipped = send(manual, { type: 'NEXT', now: 5000, skipped: true });
+    const restored = cookReducer(skipped, {
+      type: 'UNDO_SKIP',
+      saved: manual,
+      savedRemainingMs: 3000,
+      now: 8000,
+    });
+
+    expect(restored.stepState).toBe('manual');
+    expect(stepElapsedMs(restored, 8000)).toBe(3000);
   });
 
   it('finishes after the last step', () => {

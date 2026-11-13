@@ -26,9 +26,11 @@ export type CookEvent =
   | { type: 'SET_ALL_PREP' }
   | { type: 'START_COOKING'; now: number }
   | { type: 'TIMER_DONE'; now: number }
+  | { type: 'EXTEND_TIME'; now: number; seconds: number }
   | { type: 'PAUSE'; now: number }
   | { type: 'RESUME'; now: number }
   | { type: 'NEXT'; now: number; skipped?: boolean }
+  | { type: 'UNDO_SKIP'; saved: CookState; savedRemainingMs: number; now: number }
   | { type: 'PREV'; now: number }
   | { type: 'FINISH'; now: number }
   | { type: 'ABORT'; now: number };
@@ -177,12 +179,58 @@ export function cookReducer(state: CookState, event: CookEvent): CookState {
         return state;
       }
 
+      if (state.timerEndAt === null || event.now < state.timerEndAt) {
+        return state;
+      }
+
       return {
         ...state,
         stepState: 'awaiting',
         timerEndAt: null,
         pausedRemainingMs: null,
       };
+    }
+
+    case 'EXTEND_TIME': {
+      if (state.phase !== 'cooking' || state.stepState === 'manual') {
+        return state;
+      }
+
+      const step = state.recipe.steps[state.stepIndex];
+
+      if (!step || !isTimedStep(step)) {
+        return state;
+      }
+
+      const delta = Math.max(1, Math.round(event.seconds)) * 1000;
+
+      if (state.stepState === 'running') {
+        if (state.timerEndAt === null) {
+          return state;
+        }
+
+        return { ...state, timerEndAt: state.timerEndAt + delta };
+      }
+
+      if (state.stepState === 'paused') {
+        if (state.pausedRemainingMs === null) {
+          return state;
+        }
+
+        return { ...state, pausedRemainingMs: state.pausedRemainingMs + delta };
+      }
+
+      if (state.stepState === 'awaiting') {
+        return {
+          ...state,
+          stepState: 'running',
+          timerEndAt: event.now + delta,
+          pausedRemainingMs: null,
+          pausedAt: null,
+        };
+      }
+
+      return state;
     }
 
     case 'PAUSE': {
@@ -236,6 +284,31 @@ export function cookReducer(state: CookState, event: CookEvent): CookState {
       }
 
       return enterStep({ ...state, logs }, nextIndex, event.now);
+    }
+
+    case 'UNDO_SKIP': {
+      if (state.phase !== 'cooking' || event.saved.phase !== 'cooking') {
+        return state;
+      }
+
+      const saved = event.saved;
+      const restored: CookState = {
+        ...saved,
+        timerEndAt: null,
+        pausedRemainingMs: null,
+        pausedAt: null,
+      };
+
+      if (saved.stepState === 'running') {
+        restored.timerEndAt = event.now + event.savedRemainingMs;
+      } else if (saved.stepState === 'paused') {
+        restored.pausedRemainingMs = event.savedRemainingMs;
+        restored.pausedAt = event.now;
+      } else if (saved.stepState === 'manual') {
+        restored.enteredAt = event.now - event.savedRemainingMs;
+      }
+
+      return restored;
     }
 
     case 'PREV': {

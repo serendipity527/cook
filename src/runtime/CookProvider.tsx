@@ -12,7 +12,7 @@ import {
 import type { Recipe } from '@shared/schema';
 import { newId, saveSession } from '@/data/repo';
 import { useAppStore } from '@/store/useAppStore';
-import { audio } from './audio';
+import { audio, vibrate } from './audio';
 import {
   cookReducer,
   createInitialState,
@@ -166,7 +166,16 @@ export function CookProvider({ children }: { children: ReactNode }) {
     const previous = previousStateRef.current;
     previousStateRef.current = state;
 
-    if (!state || state.phase !== 'cooking') {
+    if (!state) {
+      return;
+    }
+
+    if (previous?.phase === 'cooking' && state.phase === 'done') {
+      vibrate([100, 80, 100, 80, 200]);
+      return;
+    }
+
+    if (state.phase !== 'cooking') {
       return;
     }
 
@@ -191,6 +200,7 @@ export function CookProvider({ children }: { children: ReactNode }) {
     if (previous.stepState === 'running' && state.stepState === 'awaiting') {
       const nextStep = state.recipe.steps[state.stepIndex + 1];
       audio.chime();
+      vibrate([200, 100, 200]);
       audio.speak(nextStep ? `下一步，${nextStep.speak ?? nextStep.text}` : '最后一步完成，可以出锅了', {
         enabled: speechEnabled,
         rate: speechRate,
