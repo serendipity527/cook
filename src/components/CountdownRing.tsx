@@ -24,7 +24,7 @@ export function CountdownRing({
   const color = paused ? 'var(--muted)' : urgent ? 'var(--accent-2)' : 'var(--accent)';
 
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[300px]">
+    <div className="relative mx-auto aspect-square w-full max-w-[min(300px,44dvh)]">
       <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full -rotate-90">
         <circle
           cx={size / 2}
@@ -52,7 +52,7 @@ export function CountdownRing({
       </svg>
 
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-6xl font-bold tabular-nums tracking-tight">
+        <span className="text-[clamp(4rem,18vw,6rem)] font-bold tabular-nums tracking-tight">
           {formatClock(remainingMs)}
         </span>
         <span className="mt-2 text-sm text-[var(--muted)]">

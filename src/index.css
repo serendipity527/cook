@@ -3,12 +3,15 @@
 :root {
   --bg: #0b0f14;
   --surface: #141a22;
+  --surface-2: #1b232d;
   --text: #f5f2ec;
   --muted: #8a94a6;
   --accent: #ff7a2f;
   --accent-2: #ffc24b;
   --ok: #3ddc97;
   --danger: #ff5a5f;
+  --line: rgba(255, 255, 255, 0.08);
+  --overlay: rgba(0, 0, 0, 0.7);
 
   color-scheme: dark;
   font-family:
