@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight, Settings } from 'lucide-react';
+import { ChevronRight, Settings, Sparkles } from 'lucide-react';
 import { listAllRecipes, listSessions } from '@/data/repo';
 import { useCook } from '@/runtime/CookProvider';
 import { useAppStore } from '@/store/useAppStore';
@@ -76,6 +76,23 @@ export function Home() {
           <ChevronRight className="text-[var(--accent-2)]" />
         </button>
       ) : null}
+
+      <button
+        type="button"
+        onClick={() => navigate({ name: 'chat' })}
+        className="flex w-full items-center gap-4 rounded-3xl border border-[var(--accent)]/25 bg-[var(--accent)]/5 p-5 text-left transition active:scale-[0.995]"
+      >
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)]/15 text-[var(--accent-2)]">
+          <Sparkles size={20} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-semibold">和 AI 说一道菜</span>
+          <span className="mt-0.5 block text-xs text-[var(--muted)]">
+            口述做法，自动整理成步骤和倒计时
+          </span>
+        </span>
+        <ChevronRight className="shrink-0 text-[var(--muted)]" />
+      </button>
 
       {recent.length > 0 ? (
         <section>

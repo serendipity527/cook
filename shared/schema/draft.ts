@@ -23,6 +23,13 @@ export const DraftSchema = z.object({
   updatedAt: z.number().int().nonnegative(),
 });
 
+export const DraftRequestSchema = z.object({
+  draft: DraftSpecSchema.nullable().optional(),
+  message: z.string().min(1).max(2000),
+  locale: z.string().max(20).default('zh-CN'),
+});
+
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;
 export type DraftSpec = z.infer<typeof DraftSpecSchema>;
 export type Draft = z.infer<typeof DraftSchema>;
+export type DraftRequest = z.infer<typeof DraftRequestSchema>;

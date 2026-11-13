@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, Download, HardDrive, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, Download, HardDrive, Sparkles, Trash2, Upload } from 'lucide-react';
 import type { Recipe } from '@shared/schema';
 import {
   deleteRecipe,
@@ -94,6 +94,20 @@ export function Studio() {
         <p className="text-xs tracking-[0.25em] text-[var(--accent)]">STUDIO</p>
         <h1 className="mt-1 text-3xl font-bold tracking-tight">管理与设置</h1>
       </header>
+
+      <button
+        type="button"
+        onClick={() => navigate({ name: 'chat' })}
+        className="mt-5 flex w-full items-center gap-3 rounded-3xl border border-[var(--accent)]/25 bg-[var(--accent)]/5 p-4 text-left transition active:scale-[0.995]"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)]/15 text-[var(--accent-2)]">
+          <Sparkles size={18} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold">用 AI 新建菜谱</span>
+          <span className="mt-0.5 block text-xs text-[var(--muted)]">说一遍做法，生成可开火的步骤</span>
+        </span>
+      </button>
 
       {message ? (
         <p className="mt-4 rounded-2xl bg-[var(--surface)] p-4 text-sm leading-relaxed text-[var(--muted)]">

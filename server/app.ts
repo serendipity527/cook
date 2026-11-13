@@ -1,6 +1,9 @@
 import { Hono } from 'hono';
+import { recipeRoute } from './routes/recipe';
 
 export const app = new Hono();
+
+app.route('/api/recipe', recipeRoute);
 
 app.get('/api/health', (c) =>
   c.json({
