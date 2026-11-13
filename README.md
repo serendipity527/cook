@@ -16,6 +16,7 @@ npm run dev:server  # AI 网关 http://localhost:8787
 npm test         # 单元测试
 npm run build    # 类型检查 + 生产构建
 npm run lint     # ESLint
+npm run icons    # 由 public/icon.svg 重新生成 PWA 图标
 ```
 
 前端开发服务器会把 `/api` 代理到 `http://localhost:8787`。
