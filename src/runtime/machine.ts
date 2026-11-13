@@ -23,6 +23,7 @@ export interface CookState {
 
 export type CookEvent =
   | { type: 'TOGGLE_PREP'; itemId: string }
+  | { type: 'SET_ALL_PREP' }
   | { type: 'START_COOKING'; now: number }
   | { type: 'TIMER_DONE'; now: number }
   | { type: 'PAUSE'; now: number }
@@ -31,6 +32,19 @@ export type CookEvent =
   | { type: 'PREV'; now: number }
   | { type: 'FINISH'; now: number }
   | { type: 'ABORT'; now: number };
+
+export function prepareCookState(
+  state: CookState | null,
+  recipe: Recipe,
+  sessionId: string,
+  now: number,
+): CookState {
+  if (state?.phase === 'prep' && state.recipe.id === recipe.id) {
+    return state;
+  }
+
+  return createInitialState(recipe, sessionId, now);
+}
 
 export function createInitialState(recipe: Recipe, sessionId: string, now: number): CookState {
   return {
@@ -125,6 +139,17 @@ export function cookReducer(state: CookState, event: CookEvent): CookState {
           ...state.prepChecked,
           [event.itemId]: !state.prepChecked[event.itemId],
         },
+      };
+    }
+
+    case 'SET_ALL_PREP': {
+      if (state.phase !== 'prep') {
+        return state;
+      }
+
+      return {
+        ...state,
+        prepChecked: Object.fromEntries(state.recipe.prep.map((item) => [item.id, true])),
       };
     }
 

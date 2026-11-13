@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeft, Check } from 'lucide-react';
 import { getRecipe } from '@/data/repo';
@@ -6,15 +6,21 @@ import { useRequestBack } from '@/navigation/NavigationProvider';
 import { useCook } from '@/runtime/CookProvider';
 import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
+import { ConfirmSheet } from '@/components/ConfirmSheet';
 
 export function Prep({ recipeId }: { recipeId: string }) {
   const navigate = useAppStore((state) => state.navigate);
   const resetTo = useAppStore((state) => state.resetTo);
   const requestBack = useRequestBack();
-  const { begin } = useCook();
+  const { state, prepare, begin, startCooking, dispatch } = useCook();
   const recipe = useLiveQuery(async () => (await getRecipe(recipeId)) ?? null, [recipeId]);
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    if (recipe) {
+      prepare(recipe);
+    }
+  }, [prepare, recipe]);
 
   if (recipe === undefined) {
     return <Centered>加载中…</Centered>;
@@ -32,11 +38,21 @@ export function Prep({ recipeId }: { recipeId: string }) {
   }
 
   const total = recipe.prep.length;
+  const checked =
+    state?.phase === 'prep' && state.recipe.id === recipe.id ? state.prepChecked : {};
   const prepared = recipe.prep.filter((item) => checked[item.id]).length;
   const remaining = total - prepared;
+  const allChecked = total > 0 && remaining === 0;
 
   const start = () => {
-    begin(recipe);
+    setConfirmOpen(false);
+
+    if (state?.phase === 'prep' && state.recipe.id === recipe.id) {
+      startCooking();
+    } else {
+      begin(recipe);
+    }
+
     navigate({ name: 'cook' });
   };
 
@@ -63,9 +79,21 @@ export function Prep({ recipeId }: { recipeId: string }) {
       <header className="mt-5">
         <p className="text-xs tracking-[0.25em] text-[var(--accent)]">PREP</p>
         <h1 className="mt-1 text-3xl font-bold tracking-tight">备菜</h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">
-          {recipe.title} · 已备 {prepared} / {total}
-        </p>
+        <div className="mt-2 flex items-center justify-between gap-3">
+          <p className="text-sm text-[var(--muted)]">
+            {recipe.title} · 已备 {prepared} / {total}
+          </p>
+          {total > 0 ? (
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'SET_ALL_PREP' })}
+              disabled={allChecked}
+              className="min-h-11 shrink-0 rounded-full bg-white/5 px-3 text-xs text-[var(--accent-2)] disabled:opacity-40"
+            >
+              全部勾选
+            </button>
+          ) : null}
+        </div>
       </header>
 
       <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-[var(--surface)]">
@@ -89,9 +117,7 @@ export function Prep({ recipeId }: { recipeId: string }) {
                 key={item.id}
                 type="button"
                 aria-pressed={isChecked}
-                onClick={() =>
-                  setChecked((current) => ({ ...current, [item.id]: !current[item.id] }))
-                }
+                onClick={() => dispatch({ type: 'TOGGLE_PREP', itemId: item.id })}
                 className="flex w-full items-start gap-4 rounded-3xl bg-[var(--surface)] p-5 text-left transition active:scale-[0.995]"
               >
                 <span
@@ -103,7 +129,13 @@ export function Prep({ recipeId }: { recipeId: string }) {
                 >
                   <Check size={16} strokeWidth={3} />
                 </span>
-                <span className={isChecked ? 'text-[15px] leading-relaxed opacity-50' : 'text-[15px] leading-relaxed'}>
+                <span
+                  className={
+                    isChecked
+                      ? 'text-[15px] leading-relaxed opacity-50'
+                      : 'text-[15px] leading-relaxed'
+                  }
+                >
                   {item.text}
                   {item.tip ? (
                     <span className="mt-1 block text-xs text-[var(--muted)]">{item.tip}</span>
@@ -118,34 +150,25 @@ export function Prep({ recipeId }: { recipeId: string }) {
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)] to-transparent">
         <div className="mx-auto w-full max-w-md px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-6">
           <BigButton onClick={handleStart}>
-            {remaining > 0 ? `开始做菜（还有 ${remaining} 项没备）` : '开始做菜'}
+            {total === 0
+              ? '直接开火'
+              : remaining > 0
+                ? `开始做菜（还有 ${remaining} 项没备）`
+                : '开始做菜'}
           </BigButton>
         </div>
       </div>
 
-      {confirmOpen ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-3xl bg-[var(--surface)] p-6">
-            <h2 className="text-xl font-semibold">还有 {remaining} 项没备好</h2>
-            <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-              炒菜中途没空切葱。建议备完再开火，不然锅里的火不会等你。
-            </p>
-            <div className="mt-6 space-y-3">
-              <BigButton
-                onClick={() => {
-                  setConfirmOpen(false);
-                  start();
-                }}
-              >
-                还是开始
-              </BigButton>
-              <BigButton variant="secondary" onClick={() => setConfirmOpen(false)}>
-                再检查一下
-              </BigButton>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ConfirmSheet
+        open={confirmOpen}
+        title={`还有 ${remaining} 项没备好`}
+        description="炒菜中途没空切葱。建议备完再开火，不然锅里的火不会等你。"
+        cancelLabel="回去备齐"
+        confirmLabel="仍然开火"
+        tone="danger"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={start}
+      />
     </main>
   );
 }

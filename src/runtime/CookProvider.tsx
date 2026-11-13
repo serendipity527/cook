@@ -16,6 +16,7 @@ import { audio } from './audio';
 import {
   cookReducer,
   createInitialState,
+  prepareCookState,
   reconcileAfterRestore,
   toSession,
   type CookEvent,
@@ -24,11 +25,33 @@ import {
 import { clearSnapshot, loadSnapshot, saveSnapshot } from './snapshot';
 import { useWakeLock } from './useWakeLock';
 
-type RootAction = { type: 'event'; event: CookEvent } | { type: 'replace'; state: CookState | null };
+type RootAction =
+  | { type: 'event'; event: CookEvent }
+  | { type: 'replace'; state: CookState | null }
+  | { type: 'prepare'; recipe: Recipe; now: number }
+  | { type: 'begin'; recipe: Recipe; now: number }
+  | { type: 'start'; now: number };
 
 function rootReducer(state: CookState | null, action: RootAction): CookState | null {
   if (action.type === 'replace') {
     return action.state;
+  }
+
+  if (action.type === 'prepare') {
+    return prepareCookState(state, action.recipe, newId('sess'), action.now);
+  }
+
+  if (action.type === 'begin') {
+    const initial = createInitialState(action.recipe, newId('sess'), action.now);
+    return cookReducer(initial, { type: 'START_COOKING', now: action.now });
+  }
+
+  if (action.type === 'start') {
+    if (!state) {
+      return state;
+    }
+
+    return cookReducer(state, { type: 'START_COOKING', now: action.now });
   }
 
   if (!state) {
@@ -41,7 +64,9 @@ function rootReducer(state: CookState | null, action: RootAction): CookState | n
 interface CookContextValue {
   state: CookState | null;
   hasResume: boolean;
+  prepare: (recipe: Recipe) => void;
   begin: (recipe: Recipe) => void;
+  startCooking: () => void;
   resume: () => boolean;
   reset: () => void;
   dispatch: (event: CookEvent) => void;
@@ -62,28 +87,26 @@ export function CookProvider({ children }: { children: ReactNode }) {
     rawDispatch({ type: 'event', event });
   }, []);
 
+  const prepare = useCallback((recipe: Recipe) => {
+    rawDispatch({ type: 'prepare', recipe, now: Date.now() });
+  }, []);
+
   const begin = useCallback((recipe: Recipe) => {
     void audio.unlock();
-
-    const settings = useAppStore.getState();
-    const firstStep = recipe.steps[0];
-
-    if (firstStep) {
-      skipFirstSpeechRef.current = true;
-      audio.speak(firstStep.speak ?? firstStep.text, {
-        enabled: settings.speechEnabled,
-        rate: settings.speechRate,
-      });
-    }
-
-    const now = Date.now();
-    const initial = createInitialState(recipe, newId('sess'), now);
-    const started = cookReducer(initial, { type: 'START_COOKING', now });
-
+    skipFirstSpeechRef.current = false;
     savedSessionRef.current = null;
     setHasResume(false);
     clearSnapshot();
-    rawDispatch({ type: 'replace', state: started });
+    rawDispatch({ type: 'begin', recipe, now: Date.now() });
+  }, []);
+
+  const startCooking = useCallback(() => {
+    void audio.unlock();
+    skipFirstSpeechRef.current = false;
+    savedSessionRef.current = null;
+    setHasResume(false);
+    clearSnapshot();
+    rawDispatch({ type: 'start', now: Date.now() });
   }, []);
 
   const resume = useCallback(() => {
@@ -95,6 +118,7 @@ export function CookProvider({ children }: { children: ReactNode }) {
     }
 
     const restored = reconcileAfterRestore(snapshot.state, Date.now());
+    skipFirstSpeechRef.current = true;
     savedSessionRef.current = null;
     setHasResume(false);
     rawDispatch({ type: 'replace', state: restored });
@@ -175,8 +199,17 @@ export function CookProvider({ children }: { children: ReactNode }) {
   }, [state, speechEnabled, speechRate]);
 
   const value = useMemo<CookContextValue>(
-    () => ({ state, hasResume, begin, resume, reset, dispatch }),
-    [state, hasResume, begin, resume, reset, dispatch],
+    () => ({
+      state,
+      hasResume,
+      prepare,
+      begin,
+      startCooking,
+      resume,
+      reset,
+      dispatch,
+    }),
+    [state, hasResume, prepare, begin, startCooking, resume, reset, dispatch],
   );
 
   return <CookContext.Provider value={value}>{children}</CookContext.Provider>;

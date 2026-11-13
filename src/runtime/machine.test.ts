@@ -3,6 +3,7 @@ import type { Recipe } from '@shared/schema';
 import {
   cookReducer,
   createInitialState,
+  prepareCookState,
   reconcileAfterRestore,
   remainingMs,
   toSession,
@@ -54,6 +55,29 @@ describe('prep', () => {
 
     const unchecked = cookReducer(checked, { type: 'TOGGLE_PREP', itemId: 'p1' });
     expect(unchecked.prepChecked.p1).toBe(false);
+  });
+
+  it('checks every prep item at once', () => {
+    const checked = cookReducer(initial(), { type: 'SET_ALL_PREP' });
+    expect(checked.prepChecked).toEqual({ p1: true });
+  });
+
+  it('keeps prep checks when preparing the same recipe again', () => {
+    const checked = cookReducer(initial(), { type: 'TOGGLE_PREP', itemId: 'p1' });
+    const prepared = prepareCookState(checked, recipe, 'new_session', 2000);
+
+    expect(prepared).toBe(checked);
+    expect(prepared.prepChecked.p1).toBe(true);
+  });
+
+  it('starts a fresh prep state for another recipe', () => {
+    const checked = cookReducer(initial(), { type: 'TOGGLE_PREP', itemId: 'p1' });
+    const other: Recipe = { ...recipe, id: 'r_other', title: '另一道菜' };
+    const prepared = prepareCookState(checked, other, 'new_session', 2000);
+
+    expect(prepared.recipe.id).toBe('r_other');
+    expect(prepared.prepChecked).toEqual({});
+    expect(prepared.phase).toBe('prep');
   });
 });
 
