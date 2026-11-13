@@ -1,4 +1,11 @@
 import { CookSessionSchema, RecipeSchema, type CookSession, type Recipe } from '@shared/schema';
+import {
+  buildExportBundle,
+  mergeImport,
+  parseExportBundle,
+  type ExportBundle,
+  type ImportReport,
+} from './backup';
 import { builtinRecipeMap, builtinRecipes } from './builtin';
 import { db } from './db';
 
@@ -112,4 +119,36 @@ export async function getStorageEstimate(): Promise<{ usage: number; quota: numb
 
   const estimate = await navigator.storage.estimate();
   return { usage: estimate.usage ?? 0, quota: estimate.quota ?? 0 };
+}
+
+export async function exportData(now = Date.now()): Promise<ExportBundle> {
+  const [recipes, sessions] = await Promise.all([listUserRecipes(), listSessions()]);
+  return buildExportBundle(recipes, sessions, now);
+}
+
+export async function importData(text: string): Promise<ImportReport> {
+  const parsed = parseExportBundle(text);
+  const [allRecipes, allSessions] = await Promise.all([
+    db.recipes.toArray(),
+    db.sessions.toArray(),
+  ]);
+
+  const { recipesToPut, sessionsToPut, report } = mergeImport({
+    recipes: parsed.recipes,
+    sessions: parsed.sessions,
+    existingRecipes: allRecipes,
+    existingSessionIds: new Set(allSessions.map((session) => session.id)),
+  });
+
+  await db.transaction('rw', db.recipes, db.sessions, async () => {
+    if (recipesToPut.length > 0) {
+      await db.recipes.bulkPut(recipesToPut);
+    }
+
+    if (sessionsToPut.length > 0) {
+      await db.sessions.bulkPut(sessionsToPut);
+    }
+  });
+
+  return report;
 }

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Settings } from 'lucide-react';
 import { listAllRecipes, listSessions } from '@/data/repo';
 import { useCook } from '@/runtime/CookProvider';
 import { useAppStore } from '@/store/useAppStore';
@@ -47,10 +47,20 @@ export function Home() {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-8 px-5 pb-12 pt-10">
-      <header>
-        <p className="text-xs font-medium tracking-[0.3em] text-[var(--accent)]">KAIHUO</p>
-        <h1 className="mt-1 text-4xl font-bold tracking-tight">开火</h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">手上有油也能用的做饭助手</p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium tracking-[0.3em] text-[var(--accent)]">KAIHUO</p>
+          <h1 className="mt-1 text-4xl font-bold tracking-tight">开火</h1>
+          <p className="mt-1 text-sm text-[var(--muted)]">手上有油也能用的做饭助手</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate({ name: 'studio' })}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--muted)]"
+          aria-label="管理与设置"
+        >
+          <Settings size={19} />
+        </button>
       </header>
 
       {hasResume ? (

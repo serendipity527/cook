@@ -24,7 +24,7 @@ export const useAppStore = create<AppState>()(
     (set) => ({
       view: { name: 'home' },
       speechEnabled: true,
-      speechRate: 1.05,
+      speechRate: 1.0,
       navigate: (view) => set({ view }),
       setSpeechEnabled: (speechEnabled) => set({ speechEnabled }),
       setSpeechRate: (speechRate) => set({ speechRate }),

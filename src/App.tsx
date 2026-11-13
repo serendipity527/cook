@@ -5,6 +5,7 @@ import { Done } from './screens/Done';
 import { Home } from './screens/Home';
 import { Prep } from './screens/Prep';
 import { RecipeDetail } from './screens/RecipeDetail';
+import { Studio } from './screens/Studio';
 
 export default function App() {
   const view = useAppStore((state) => state.view);
@@ -16,6 +17,7 @@ export default function App() {
       {view.name === 'prep' ? <Prep recipeId={view.recipeId} /> : null}
       {view.name === 'cook' ? <Cook /> : null}
       {view.name === 'done' ? <Done /> : null}
+      {view.name === 'studio' ? <Studio /> : null}
     </CookProvider>
   );
 }

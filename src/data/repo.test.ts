@@ -4,8 +4,10 @@ import { builtinRecipes } from './builtin';
 import { db } from './db';
 import {
   deleteRecipe,
+  exportData,
   forkBuiltin,
   getRecipe,
+  importData,
   listAllRecipes,
   listSessions,
   saveRecipe,
@@ -97,5 +99,46 @@ describe('session repository', () => {
     await expect(
       saveSession({ ...completedSession, id: 'bad', status: 'paused' as never }),
     ).rejects.toThrow();
+  });
+});
+
+describe('backup repository', () => {
+  it('round-trips user recipes and sessions', async () => {
+    await saveRecipe(userRecipe);
+    await saveSession(completedSession);
+
+    const bundle = await exportData(777);
+    expect(bundle.recipes.map((recipe) => recipe.id)).toEqual([userRecipe.id]);
+
+    await db.recipes.clear();
+    await db.sessions.clear();
+
+    const report = await importData(JSON.stringify(bundle));
+    expect(report.recipesAdded).toBe(1);
+    expect(report.sessionsAdded).toBe(1);
+    expect((await getRecipe(userRecipe.id))?.title).toBe(userRecipe.title);
+    expect(await listSessions()).toHaveLength(1);
+  });
+
+  it('is idempotent when the same backup is imported twice', async () => {
+    await saveRecipe(userRecipe);
+    await saveSession(completedSession);
+    const text = JSON.stringify(await exportData(777));
+
+    await db.recipes.clear();
+    await db.sessions.clear();
+
+    await importData(text);
+    const second = await importData(text);
+
+    expect(second.recipesAdded).toBe(0);
+    expect(second.recipesSkipped).toBe(1);
+    expect(second.sessionsAdded).toBe(0);
+    expect(second.sessionsSkipped).toBe(1);
+    expect(await listSessions()).toHaveLength(1);
+  });
+
+  it('rejects a file that is not a backup', async () => {
+    await expect(importData('{"hello":"world"}')).rejects.toThrow('这不是“开火”的备份文件');
   });
 });
