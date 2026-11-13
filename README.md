@@ -23,6 +23,33 @@ npm run icons    # 由 public/icon.svg 重新生成 PWA 图标
 
 > 如果 npm 11 拦截 `esbuild` 的安装脚本导致构建失败，执行 `npm install-scripts approve esbuild`。
 
+## AI 录入配置
+
+```bash
+cp .env.example .env.local
+# 编辑 .env.local，填入 AI_API_KEY（DeepSeek 或任意 OpenAI 兼容服务）
+npm run dev:server
+```
+
+没有配置 key 时，做饭流程和其他功能都能正常使用；只有 AI 录入会返回 503。
+
+> 真机测试屏幕常亮、语音和 Service Worker 需要 HTTPS。局域网 IP 的 HTTP 地址不行，请用 Cloudflare Tunnel 或自签证书。
+
+## 当前状态（MVP）
+
+已实现：
+
+- 备菜 → 逐步计时 → 响铃 / 语音播报 → 完成
+- 3 个内置菜谱、屏幕常亮、中断恢复、做菜记录
+- AI 对话录入、草稿内联编辑、试做校准
+- 本地 IndexedDB、导入导出、持久化申请
+- PWA 安装引导、离线壳、PNG 图标
+
+暂未实现（v2）：
+
+- 云端 TTS 预生成、云同步、分享链接
+- 边说边录、截图 / 链接导入、小程序迁移
+
 ## 目录
 
 ```
