@@ -16,10 +16,10 @@ describe('gateway', () => {
   });
 
   it('reports a missing AI key instead of crashing', async () => {
-    const response = await app.request('/api/recipe/draft', {
+    const response = await app.request('/api/assistant', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ message: '番茄炒蛋' }),
+      body: JSON.stringify({ message: '你好' }),
     });
 
     expect(response.status).toBe(503);
@@ -27,10 +27,10 @@ describe('gateway', () => {
     expect(body.error).toContain('AI 未配置');
   });
 
-  it('rejects an invalid draft request before calling the model', async () => {
+  it('rejects an invalid assistant request before calling the model', async () => {
     process.env.AI_API_KEY = 'test-key';
 
-    const response = await app.request('/api/recipe/draft', {
+    const response = await app.request('/api/assistant', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({}),

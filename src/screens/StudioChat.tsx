@@ -1,23 +1,25 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useObject } from '@ai-sdk/react';
-import type { DeepPartial } from 'ai';
 import { ArrowLeft, Send, Sparkles } from 'lucide-react';
 import {
+  AssistantTurnSchema,
   DraftSpecSchema,
-  type DraftRequest,
+  type AssistantRequest,
+  type AssistantTurn,
   type DraftSpec,
-  type StepInput,
 } from '@shared/schema';
 import { normalizeDraft } from '@/ai/normalizeDraft';
-import { requestPersistence, saveRecipe } from '@/data/repo';
-import { formatSeconds } from '@/lib/format';
+import { listAllRecipes, requestPersistence, saveRecipe } from '@/data/repo';
 import { aiErrorMessage } from '@/lib/aiError';
+import { localAssistantReply } from '@/lib/localAssistant';
 import { useAppStore } from '@/store/useAppStore';
+import { useChatStore } from '@/store/useChatStore';
 import { BigButton } from '@/components/BigButton';
 import { DraftEditor } from '@/components/DraftEditor';
+import { RecipeCard } from '@/components/RecipeCard';
 
-const example =
-  '番茄炒蛋，两个人吃。番茄两个切块，鸡蛋三个加盐打散。先热锅倒油，倒蛋液炒到凝固盛出，再炒番茄出汁，倒回鸡蛋，加盐糖翻匀出锅。';
+const quickActions = ['你好', '我有哪些菜谱', '帮我录一道番茄炒蛋', '今天吃什么'];
 
 function getAiSessionId(): string {
   const storageKey = 'kaihuo:ai-session';
@@ -36,71 +38,129 @@ function getAiSessionId(): string {
 
 export function StudioChat() {
   const navigate = useAppStore((store) => store.navigate);
+  const recipeRows = useLiveQuery(() => listAllRecipes(), []);
+  const recipes = useMemo(() => recipeRows ?? [], [recipeRows]);
+  const messages = useChatStore((state) => state.messages);
+  const editedSpec = useChatStore((state) => state.draft);
+  const visibleRecipeIds = useChatStore((state) => state.recipeIds);
+  const appendMessage = useChatStore((state) => state.appendMessage);
+  const setDraft = useChatStore((state) => state.setDraft);
+  const setRecipeIds = useChatStore((state) => state.setRecipeIds);
+  const resetChat = useChatStore((state) => state.reset);
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<string[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [editedSpec, setEditedSpec] = useState<DraftSpec | null>(null);
   const lastSpecRef = useRef<DraftSpec | null>(null);
-  const sessionId = useMemo(() => getAiSessionId(), []);
+  const endRef = useRef<HTMLDivElement | null>(null);
+  const sessionId = useMemo(getAiSessionId, []);
+
+  const recipeIndex = useMemo(
+    () =>
+      recipes.map((recipe) => ({
+        id: recipe.id,
+        title: recipe.title,
+        tags: recipe.tags,
+        estimatedMinutes: recipe.estimatedMinutes,
+        source: recipe.source,
+      })),
+    [recipes],
+  );
 
   const { object, submit, isLoading, error, stop, clear } = useObject<
-    typeof DraftSpecSchema,
-    DraftSpec,
-    DraftRequest
+    typeof AssistantTurnSchema,
+    AssistantTurn,
+    AssistantRequest
   >({
-    api: '/api/recipe/draft',
-    schema: DraftSpecSchema,
+    api: '/api/assistant',
+    schema: AssistantTurnSchema,
     onFinish: ({ object: finished, error: finishError }) => {
       if (finishError) {
         return;
       }
 
-      const parsed = DraftSpecSchema.safeParse(finished);
+      const parsed = AssistantTurnSchema.safeParse(finished);
 
-      if (parsed.success) {
-        lastSpecRef.current = parsed.data;
-        setEditedSpec(parsed.data);
+      if (!parsed.success) {
+        return;
+      }
+
+      const turn = parsed.data;
+      appendMessage({ role: 'assistant', content: turn.reply });
+
+      if (turn.draft) {
+        lastSpecRef.current = turn.draft;
+        setDraft(turn.draft);
+      }
+
+      if (turn.intent === 'list_recipes') {
+        setRecipeIds(
+          turn.recipeIds?.length ? turn.recipeIds : recipes.map((recipe) => recipe.id),
+        );
+      } else if (turn.intent === 'show_recipe') {
+        setRecipeIds(turn.recipeIds ?? []);
+      } else {
+        setRecipeIds([]);
       }
     },
     onError: () => {
-      // 生成失败时回到上一版可用草稿，用户输入不白费
       if (lastSpecRef.current) {
-        setEditedSpec(lastSpecRef.current);
+        setDraft(lastSpecRef.current);
       }
     },
   });
 
-  const parsedDraft = useMemo(
-    () => DraftSpecSchema.safeParse(editedSpec ?? object),
-    [editedSpec, object],
-  );
-  const prep = (object?.prep ?? []).filter((item) => Boolean(item?.text));
-  const steps = (object?.steps ?? []).filter((step) => Boolean(step?.text));
-  const questions = (object?.questions ?? []).filter(
-    (question): question is string => typeof question === 'string' && question.length > 0,
+  const parsedDraft = useMemo(() => DraftSpecSchema.safeParse(editedSpec), [editedSpec]);
+  const partialReply = typeof object?.reply === 'string' ? object.reply : '';
+  const visibleRecipes = useMemo(
+    () => recipes.filter((recipe) => visibleRecipeIds.includes(recipe.id)),
+    [recipes, visibleRecipeIds],
   );
 
-  const handleSend = () => {
-    if (isLoading) {
-      stop();
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [messages, isLoading, partialReply]);
+
+  const sendMessage = (rawText: string) => {
+    const text = rawText.trim();
+
+    if (!text || isLoading) {
       return;
     }
 
-    const text = input.trim();
-    if (!text) {
-      return;
-    }
-
-    const current = DraftSpecSchema.safeParse(editedSpec ?? object);
-    lastSpecRef.current = current.success ? current.data : lastSpecRef.current;
-    setMessages((currentMessages) => [...currentMessages, text]);
-    setEditedSpec(null);
     setInput('');
     setSaveError(null);
-    submit({
-      draft: current.success ? current.data : null,
+
+    if (error) {
+      clear();
+    }
+
+    const history = messages.slice(-10);
+    appendMessage({ role: 'user', content: text });
+
+    const local = localAssistantReply({
       message: text,
+      recipes,
+      hasDraft: editedSpec !== null,
+      draftTitle: editedSpec?.title,
+    });
+
+    if (local) {
+      appendMessage({ role: 'assistant', content: local.reply });
+      setRecipeIds(local.recipeIds ?? []);
+      return;
+    }
+
+    const currentDraft = DraftSpecSchema.safeParse(editedSpec);
+
+    if (currentDraft.success) {
+      lastSpecRef.current = currentDraft.data;
+    }
+
+    submit({
+      message: text,
+      draft: currentDraft.success ? currentDraft.data : null,
+      history,
+      recipes: recipeIndex.slice(0, 50),
       locale: 'zh-CN',
       sessionId,
     });
@@ -119,6 +179,8 @@ export function StudioChat() {
       const recipe = normalizeDraft(parsedDraft.data);
       await saveRecipe(recipe);
       void requestPersistence().catch(() => undefined);
+      resetChat();
+      lastSpecRef.current = null;
       navigate({ name: 'detail', recipeId: recipe.id });
     } catch (saveFailure) {
       setSaveError(saveFailure instanceof Error ? saveFailure.message : '保存失败，请重试');
@@ -130,8 +192,7 @@ export function StudioChat() {
   const handleReset = () => {
     stop();
     clear();
-    setMessages([]);
-    setEditedSpec(null);
+    resetChat();
     lastSpecRef.current = null;
     setInput('');
     setSaveError(null);
@@ -148,7 +209,7 @@ export function StudioChat() {
         >
           <ArrowLeft size={20} />
         </button>
-        {object || messages.length > 0 ? (
+        {messages.length > 0 || editedSpec ? (
           <button
             type="button"
             onClick={handleReset}
@@ -161,132 +222,94 @@ export function StudioChat() {
 
       <header className="mt-5">
         <p className="text-xs tracking-[0.25em] text-[var(--accent)]">AI STUDIO</p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">说一道菜</h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">
-          口述你的做法，AI 会整理成备菜清单、步骤和倒计时。
-        </p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight">厨房助手</h1>
+        <p className="mt-2 text-sm text-[var(--muted)]">可以聊天、查菜谱、录新菜。</p>
       </header>
 
-      {messages.length > 0 ? (
-        <div className="mt-6 space-y-2">
-          {messages.slice(-3).map((message, index) => (
-            <p
-              key={`${message}-${index}`}
-              className="ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md bg-[var(--surface)] px-4 py-2.5 text-sm leading-relaxed"
-            >
-              {message}
-            </p>
-          ))}
-        </div>
-      ) : null}
-
-      {error ? (
-        <div className="mt-6 rounded-2xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-4 text-sm leading-relaxed">
-          <p className="font-medium text-[var(--danger)]">生成失败了</p>
-          <p className="mt-1 text-[var(--muted)]">{aiErrorMessage(error)}</p>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            如果是第一次使用，请确认网关已配置 AI_API_KEY 后重启。
-          </p>
-        </div>
-      ) : null}
-
-      {isLoading && !object ? (
-        <section className="mt-8 rounded-3xl bg-[var(--surface)] p-6">
-          <div className="flex items-center gap-3">
-            <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
-            <div>
-              <p className="text-sm font-medium">正在整理菜谱</p>
-              <p className="mt-1 text-xs text-[var(--muted)]">通常需要半分钟，先别关页面。</p>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {!object && !isLoading ? (
+      {messages.length === 0 && !editedSpec ? (
         <section className="mt-8 rounded-3xl border border-white/10 p-6">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--accent)]/15 text-[var(--accent-2)]">
             <Sparkles size={20} />
           </div>
-          <h2 className="mt-4 text-xl font-semibold">说一遍，就能照着做</h2>
+          <h2 className="mt-4 text-xl font-semibold">先说句话，或者直接说一道菜</h2>
           <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
-            比如：“番茄炒蛋，两个人吃。番茄两个切块，鸡蛋三个加盐打散……”
+            比如：“我有哪些菜谱？”、“帮我录一道番茄炒蛋”，或者只是打个招呼。
           </p>
-          <button
-            type="button"
-            onClick={() => setInput(example)}
-            className="mt-4 text-sm text-[var(--accent-2)]"
-          >
-            用示例填一句
-          </button>
-        </section>
-      ) : null}
-
-      {editedSpec && !isLoading ? (
-        <DraftEditor spec={editedSpec} onChange={setEditedSpec} />
-      ) : object ? (
-        <section className="mt-6 rounded-3xl bg-[var(--surface)] p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2 className="text-2xl font-bold tracking-tight">
-                {typeof object.title === 'string' && object.title.length > 0
-                  ? object.title
-                  : '正在整理菜谱…'}
-              </h2>
-              <p className="mt-1 text-xs text-[var(--muted)]">
-                {typeof object.servings === 'number' ? `${object.servings} 人份` : ''}
-                {typeof object.estimatedMinutes === 'number'
-                  ? ` · 约 ${object.estimatedMinutes} 分钟`
-                  : ''}
-              </p>
-            </div>
-            {isLoading ? (
-              <span className="shrink-0 rounded-full bg-[var(--accent)]/10 px-3 py-1 text-[11px] text-[var(--accent-2)]">
-                生成中…
-              </span>
-            ) : null}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {quickActions.map((action) => (
+              <button
+                key={action}
+                type="button"
+                onClick={() => sendMessage(action)}
+                className="rounded-full bg-white/5 px-3 py-2 text-xs text-[var(--text)]"
+              >
+                {action}
+              </button>
+            ))}
           </div>
-
-          {prep.length > 0 ? (
-            <div className="mt-5">
-              <h3 className="text-xs font-medium text-[var(--muted)]">备菜</h3>
-              <ul className="mt-2 space-y-2">
-                {prep.map((item, index) => (
-                  <li key={`${item?.text}-${index}`} className="flex gap-2.5 text-sm leading-relaxed">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" />
-                    <span>{item?.text}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {steps.length > 0 ? (
-            <div className="mt-5">
-              <h3 className="text-xs font-medium text-[var(--muted)]">步骤</h3>
-              <ol className="mt-2 space-y-3">
-                {steps.map((step, index) => (
-                  <li key={`${step?.text}-${index}`} className="flex gap-3">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/5 text-[11px] text-[var(--muted)]">
-                      {index + 1}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm leading-relaxed">{step?.text}</p>
-                      <p className="mt-0.5 text-[11px] text-[var(--muted)]">{stepLabel(step)}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          ) : null}
-
         </section>
       ) : null}
 
-      {questions.length > 0 ? (
+      <div className="mt-6 space-y-3">
+        {messages.map((message, index) => (
+          <div
+            key={`${message.role}-${index}`}
+            className={message.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
+          >
+            <p
+              className={
+                message.role === 'user'
+                  ? 'max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--accent)] px-4 py-3 text-sm leading-relaxed text-[#201008]'
+                  : 'max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-[var(--surface)] px-4 py-3 text-sm leading-relaxed'
+              }
+            >
+              {message.content}
+            </p>
+          </div>
+        ))}
+
+        {isLoading ? (
+          <div className="flex justify-start">
+            <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-[var(--surface)] px-4 py-3 text-sm leading-relaxed">
+              {partialReply || <span className="text-[var(--muted)]">正在想…</span>}
+            </div>
+          </div>
+        ) : null}
+
+        {error ? (
+          <div className="rounded-2xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-4 text-sm leading-relaxed">
+            <p className="font-medium text-[var(--danger)]">刚才没成功</p>
+            <p className="mt-1 text-[var(--muted)]">{aiErrorMessage(error)}</p>
+          </div>
+        ) : null}
+
+        <div ref={endRef} />
+      </div>
+
+      {visibleRecipes.length > 0 ? (
+        <section className="mt-6">
+          <h2 className="mb-2 text-xs font-medium text-[var(--muted)]">相关菜谱</h2>
+          <div className="space-y-2">
+            {visibleRecipes.map((recipe) => (
+              <RecipeCard
+                key={recipe.id}
+                recipe={recipe}
+                onClick={() => navigate({ name: 'detail', recipeId: recipe.id })}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {editedSpec ? (
+        <DraftEditor spec={editedSpec} onChange={setDraft} heading="菜谱草稿" />
+      ) : null}
+
+      {editedSpec && editedSpec.questions.length > 0 ? (
         <div className="mt-5 rounded-2xl bg-[var(--accent-2)]/10 p-4">
           <p className="text-xs font-medium text-[var(--accent-2)]">还可以补充</p>
           <ul className="mt-2 space-y-1.5">
-            {questions.map((question) => (
+            {editedSpec.questions.map((question) => (
               <li key={question} className="text-sm leading-relaxed text-[var(--text)]">
                 · {question}
               </li>
@@ -297,7 +320,9 @@ export function StudioChat() {
 
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)] to-transparent">
         <div className="mx-auto w-full max-w-md px-5 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-6">
-          {saveError ? <p className="mb-2 text-center text-xs text-[var(--danger)]">{saveError}</p> : null}
+          {saveError ? (
+            <p className="mb-2 text-center text-xs text-[var(--danger)]">{saveError}</p>
+          ) : null}
 
           {parsedDraft.success ? (
             <BigButton className="mb-3" onClick={() => void handleSave()} disabled={saving || isLoading}>
@@ -310,12 +335,12 @@ export function StudioChat() {
               value={input}
               onChange={(event) => setInput(event.target.value)}
               rows={1}
-              placeholder="继续说：番茄炒蛋，两个人吃…"
+              placeholder="聊两句，或者说说想做的菜…"
               className="max-h-32 min-h-12 flex-1 resize-none bg-transparent px-3 py-3 text-[15px] outline-none placeholder:text-[var(--muted)]"
             />
             <button
               type="button"
-              onClick={handleSend}
+              onClick={() => (isLoading ? stop() : sendMessage(input))}
               disabled={!isLoading && input.trim().length === 0}
               className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)] text-[#201008] disabled:opacity-40"
               aria-label={isLoading ? '停止生成' : '发送'}
@@ -324,32 +349,10 @@ export function StudioChat() {
             </button>
           </div>
           <p className="mt-2 text-center text-[11px] text-[var(--muted)]">
-            AI 只在你录入时联网；做菜时不需要网络
+            AI 只在你对话时联网；做菜时不需要网络
           </p>
         </div>
       </div>
     </main>
   );
-}
-
-function stepLabel(step: DeepPartial<StepInput> | undefined): string {
-  if (!step) {
-    return '看状态';
-  }
-
-  if (step.kind === 'timed' && typeof step.durationSec === 'number') {
-    return `定时 ${formatSeconds(step.durationSec)}`;
-  }
-
-  const range = step.suggestRange;
-
-  if (
-    Array.isArray(range) &&
-    typeof range[0] === 'number' &&
-    typeof range[1] === 'number'
-  ) {
-    return `建议 ${formatSeconds(range[0])}–${formatSeconds(range[1])}`;
-  }
-
-  return '看状态';
 }

@@ -1,4 +1,4 @@
-import { DraftSpecSchema, type DraftSpec } from '@shared/schema';
+import type { ZodType } from 'zod';
 
 function jsonCandidates(text: string): string[] {
   const cleaned = text.replace(/```(?:json)?/gi, '').replace(/```/g, '');
@@ -45,7 +45,11 @@ function jsonCandidates(text: string): string[] {
   return candidates.sort((a, b) => b.length - a.length);
 }
 
-export function extractDraftJson(text: string): DraftSpec {
+export function extractJsonWithSchema<T>(
+  text: string,
+  schema: ZodType<T>,
+  label = 'JSON',
+): T {
   for (const candidate of jsonCandidates(text)) {
     let parsed: unknown;
 
@@ -55,12 +59,12 @@ export function extractDraftJson(text: string): DraftSpec {
       continue;
     }
 
-    const result = DraftSpecSchema.safeParse(parsed);
+    const result = schema.safeParse(parsed);
 
     if (result.success) {
       return result.data;
     }
   }
 
-  throw new Error('AI 没有返回符合结构的菜谱 JSON');
+  throw new Error(`AI 没有返回符合结构的${label}`);
 }

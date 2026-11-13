@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
-import { recipeRoute } from './routes/recipe';
+import { assistantRoute } from './routes/assistant';
 
 export const app = new Hono();
 
-app.route('/api/recipe', recipeRoute);
+app.route('/api/assistant', assistantRoute);
 
 app.get('/api/health', (c) =>
   c.json({

@@ -23,7 +23,7 @@ npm run icons    # 由 public/icon.svg 重新生成 PWA 图标
 
 > 如果 npm 11 拦截 `esbuild` 的安装脚本导致构建失败，执行 `npm install-scripts approve esbuild`。
 
-## AI 录入配置
+## AI 助手配置
 
 ```bash
 cp .env.example .env.local
@@ -40,7 +40,17 @@ npm run dev:server
 
 > **key 只写 `.env.local`**（已被 `.gitignore` 忽略）。`.env.example` 是提交到仓库的模板，只保留空值。
 
-没有配置 key 时，做饭流程和其他功能都能正常使用；只有 AI 录入会返回 503。
+没有配置 key 时，做饭流程和其他功能都能正常使用；只有 AI 对话会返回 503。
+
+## AI 厨房助手能做什么
+
+- 闲聊、问候、一般做饭问题（不会把“你好”变成菜谱）
+- 列出已有菜谱、按菜名查看
+- 口述做法，生成带步骤和时长的菜谱草稿
+- 在当前草稿上继续改（“改成 3 人份”“第二步再久一点”）
+- 保存后直接进入菜谱详情，开始做饭
+
+纯问候、列菜谱、按菜名查看由客户端本地即时处理，不消耗模型额度。
 
 > 真机测试屏幕常亮、语音和 Service Worker 需要 HTTPS。局域网 IP 的 HTTP 地址不行，请用 Cloudflare Tunnel 或自签证书。
 
@@ -50,7 +60,7 @@ npm run dev:server
 
 - 备菜 → 逐步计时 → 响铃 / 语音播报 → 完成
 - 3 个内置菜谱、屏幕常亮、中断恢复、做菜记录
-- AI 对话录入、草稿内联编辑、试做校准
+- AI 厨房助手：聊天、查菜谱、新建/修改菜谱、草稿内联编辑
 - 本地 IndexedDB、导入导出、持久化申请
 - PWA 安装引导、离线壳、PNG 图标
 

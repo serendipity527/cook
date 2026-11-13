@@ -1,20 +1,20 @@
 import { Hono } from 'hono';
 import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
-import { DraftRequestSchema, type DraftSpec } from '@shared/schema';
-import { extractDraftJson } from '../lib/draft-json';
+import { AssistantRequestSchema, type AssistantTurn } from '@shared/schema';
+import { extractAssistantJson } from '../lib/assistant-json';
 import { createRateLimiter } from '../lib/rate-limit';
 import {
-  buildRecipePrompt,
-  RECIPE_SYSTEM_PROMPT,
-  RECIPE_TEXT_CONTRACT,
-} from '../prompts/recipe';
+  ASSISTANT_SYSTEM_PROMPT,
+  ASSISTANT_TEXT_CONTRACT,
+  buildAssistantPrompt,
+} from '../prompts/assistant';
 
-export const recipeRoute = new Hono();
+export const assistantRoute = new Hono();
 
 const limiter = createRateLimiter(20, 60_000);
 
-recipeRoute.post('/draft', async (c) => {
+assistantRoute.post('/', async (c) => {
   const ip =
     c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ||
     c.req.header('x-real-ip') ||
@@ -31,7 +31,7 @@ recipeRoute.post('/draft', async (c) => {
   }
 
   const body: unknown = await c.req.json().catch(() => null);
-  const parsed = DraftRequestSchema.safeParse(body);
+  const parsed = AssistantRequestSchema.safeParse(body);
 
   if (!parsed.success) {
     return c.json({ error: '请求格式不正确' }, 400);
@@ -49,35 +49,41 @@ recipeRoute.post('/draft', async (c) => {
     },
   });
   const model = provider.chat(process.env.AI_MODEL?.trim() || 'deepseek-v4.1-flash');
-  const system = `${RECIPE_SYSTEM_PROMPT}\n\n${RECIPE_TEXT_CONTRACT}`;
-  const basePrompt = buildRecipePrompt(parsed.data.message, parsed.data.draft);
+  const system = `${ASSISTANT_SYSTEM_PROMPT}\n\n${ASSISTANT_TEXT_CONTRACT}`;
+  const basePrompt = buildAssistantPrompt(parsed.data);
 
   const generate = (prompt: string) =>
     generateText({
       model,
       system,
       prompt,
-      temperature: 0.3,
+      temperature: 0.4,
     }).then((result) => result.text);
 
   try {
     let text = await generate(basePrompt);
-    let draft: DraftSpec;
+    let turn: AssistantTurn;
 
     try {
-      draft = extractDraftJson(text);
+      turn = extractAssistantJson(text);
     } catch (firstError) {
       console.warn(
-        '[kaihuo] first draft attempt did not validate, retrying',
+        '[kaihuo] first assistant turn did not validate, retrying',
         firstError instanceof Error ? firstError.message : firstError,
       );
       text = await generate(
-        `${basePrompt}\n\n上一次输出没有通过校验。请严格只输出一个 JSON 对象，字段完整；timed 步骤必须有 durationSec，judgment 步骤不要 durationSec；不要 Markdown，不要解释。`,
+        `${basePrompt}
+
+上一次输出没有通过校验。请严格只输出一个 JSON 对象，字段完整：
+- 如果只是问候或闲聊，intent 必须是 chat，draft 必须是 null；
+- create_recipe / update_recipe 必须提供完整 draft；
+- timed 步骤必须有 durationSec，judgment 步骤不能有 durationSec；
+- 不要 Markdown，不要解释。`,
       );
-      draft = extractDraftJson(text);
+      turn = extractAssistantJson(text);
     }
 
-    const json = JSON.stringify(draft);
+    const json = JSON.stringify(turn);
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -96,7 +102,7 @@ recipeRoute.post('/draft', async (c) => {
       },
     });
   } catch (error) {
-    console.error('[kaihuo] recipe draft failed', error);
+    console.error('[kaihuo] assistant turn failed', error);
     return c.json({ error: '生成失败，请稍后重试' }, 502);
   }
 });
