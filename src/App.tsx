@@ -5,6 +5,7 @@ import { Done } from './screens/Done';
 import { Home } from './screens/Home';
 import { Prep } from './screens/Prep';
 import { RecipeDetail } from './screens/RecipeDetail';
+import { RecipeEditor } from './screens/RecipeEditor';
 import { Studio } from './screens/Studio';
 import { StudioChat } from './screens/StudioChat';
 
@@ -20,6 +21,7 @@ export default function App() {
       {view.name === 'done' ? <Done /> : null}
       {view.name === 'studio' ? <Studio /> : null}
       {view.name === 'chat' ? <StudioChat /> : null}
+      {view.name === 'edit' ? <RecipeEditor recipeId={view.recipeId} /> : null}
     </CookProvider>
   );
 }

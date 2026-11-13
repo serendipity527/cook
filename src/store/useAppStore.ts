@@ -8,7 +8,8 @@ export type View =
   | { name: 'cook' }
   | { name: 'done' }
   | { name: 'studio' }
-  | { name: 'chat' };
+  | { name: 'chat' }
+  | { name: 'edit'; recipeId: string };
 
 interface AppState {
   view: View;

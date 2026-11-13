@@ -4,9 +4,10 @@ import type { DraftSpec, StepInput } from '@shared/schema';
 interface DraftEditorProps {
   spec: DraftSpec;
   onChange: (spec: DraftSpec) => void;
+  heading?: string;
 }
 
-export function DraftEditor({ spec, onChange }: DraftEditorProps) {
+export function DraftEditor({ spec, onChange, heading = '编辑草稿' }: DraftEditorProps) {
   const update = (patch: Partial<DraftSpec>) => onChange({ ...spec, ...patch });
 
   const updatePrep = (index: number, text: string) => {
@@ -101,7 +102,7 @@ export function DraftEditor({ spec, onChange }: DraftEditorProps) {
   return (
     <section className="mt-6 rounded-3xl bg-[var(--surface)] p-5">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-medium text-[var(--muted)]">编辑草稿</h2>
+        <h2 className="text-sm font-medium text-[var(--muted)]">{heading}</h2>
         <span className="text-[11px] text-[var(--muted)]">保存前都可以改</span>
       </div>
 

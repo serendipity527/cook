@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowLeft, Download, HardDrive, Sparkles, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, Download, HardDrive, Pencil, Sparkles, Trash2, Upload } from 'lucide-react';
 import type { Recipe } from '@shared/schema';
 import {
   deleteRecipe,
@@ -145,6 +145,14 @@ export function Studio() {
                 >
                   <p className="truncate text-[15px] font-medium">{recipe.title}</p>
                   <p className="mt-0.5 text-xs text-[var(--muted)]">{recipe.steps.length} 步</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate({ name: 'edit', recipeId: recipe.id })}
+                  className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--muted)]"
+                  aria-label={`编辑 ${recipe.title}`}
+                >
+                  <Pencil size={17} />
                 </button>
                 <button
                   type="button"

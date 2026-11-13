@@ -1,8 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { ReactNode } from 'react';
-import { ArrowLeft, Clock3, Users } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { ArrowLeft, Clock3, Pencil, Users } from 'lucide-react';
 import { isTimedStep } from '@shared/schema';
-import { getRecipe } from '@/data/repo';
+import { forkBuiltin, getRecipe } from '@/data/repo';
 import { formatEstimatedMinutes, formatRange, formatSeconds } from '@/lib/format';
 import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
@@ -10,6 +10,7 @@ import { BigButton } from '@/components/BigButton';
 export function RecipeDetail({ recipeId }: { recipeId: string }) {
   const navigate = useAppStore((state) => state.navigate);
   const recipe = useLiveQuery(async () => (await getRecipe(recipeId)) ?? null, [recipeId]);
+  const [forking, setForking] = useState(false);
 
   if (recipe === undefined) {
     return <Centered>加载中…</Centered>;
@@ -28,6 +29,24 @@ export function RecipeDetail({ recipeId }: { recipeId: string }) {
   }
 
   const estimate = formatEstimatedMinutes(recipe.estimatedMinutes);
+
+  const handleEdit = async () => {
+    try {
+      if (recipe.source === 'builtin') {
+        setForking(true);
+        const copy = await forkBuiltin(recipe.id);
+        navigate({ name: 'edit', recipeId: copy.id });
+        return;
+      }
+
+      navigate({ name: 'edit', recipeId: recipe.id });
+    } catch (error) {
+      console.error('[kaihuo] failed to open the recipe editor', error);
+      window.alert('暂时无法编辑这道菜');
+    } finally {
+      setForking(false);
+    }
+  };
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-md px-5 pb-32 pt-6">
@@ -51,7 +70,18 @@ export function RecipeDetail({ recipeId }: { recipeId: string }) {
             </span>
           ))}
         </div>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight">{recipe.title}</h1>
+        <div className="mt-3 flex items-start justify-between gap-3">
+          <h1 className="min-w-0 text-3xl font-bold tracking-tight">{recipe.title}</h1>
+          <button
+            type="button"
+            onClick={() => void handleEdit()}
+            disabled={forking}
+            className="mt-1 flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--surface)] px-3 py-2 text-xs text-[var(--muted)] disabled:opacity-50"
+          >
+            <Pencil size={14} />
+            {forking ? '准备中…' : recipe.source === 'builtin' ? '复制并编辑' : '编辑'}
+          </button>
+        </div>
         {recipe.subtitle ? (
           <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{recipe.subtitle}</p>
         ) : null}

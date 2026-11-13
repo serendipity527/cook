@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useObject } from '@ai-sdk/react';
 import type { DeepPartial } from 'ai';
 import { ArrowLeft, Send, Sparkles } from 'lucide-react';
@@ -25,6 +25,7 @@ export function StudioChat() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [editedSpec, setEditedSpec] = useState<DraftSpec | null>(null);
+  const lastSpecRef = useRef<DraftSpec | null>(null);
 
   const { object, submit, isLoading, error, stop, clear } = useObject<
     typeof DraftSpecSchema,
@@ -41,7 +42,14 @@ export function StudioChat() {
       const parsed = DraftSpecSchema.safeParse(finished);
 
       if (parsed.success) {
+        lastSpecRef.current = parsed.data;
         setEditedSpec(parsed.data);
+      }
+    },
+    onError: () => {
+      // 生成失败时回到上一版可用草稿，用户输入不白费
+      if (lastSpecRef.current) {
+        setEditedSpec(lastSpecRef.current);
       }
     },
   });
@@ -68,6 +76,7 @@ export function StudioChat() {
     }
 
     const current = DraftSpecSchema.safeParse(editedSpec ?? object);
+    lastSpecRef.current = current.success ? current.data : lastSpecRef.current;
     setMessages((currentMessages) => [...currentMessages, text]);
     setEditedSpec(null);
     setInput('');
@@ -101,6 +110,7 @@ export function StudioChat() {
     clear();
     setMessages([]);
     setEditedSpec(null);
+    lastSpecRef.current = null;
     setInput('');
     setSaveError(null);
   };
