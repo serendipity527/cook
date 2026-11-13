@@ -11,6 +11,7 @@ interface ConfirmSheetProps {
   tone?: 'default' | 'danger';
   onCancel: () => void;
   onConfirm: () => void;
+  onDismiss?: () => void;
 }
 
 export function ConfirmSheet({
@@ -22,9 +23,10 @@ export function ConfirmSheet({
   tone = 'default',
   onCancel,
   onConfirm,
+  onDismiss,
 }: ConfirmSheetProps) {
   return (
-    <BottomSheet open={open} title={title} onClose={onCancel}>
+    <BottomSheet open={open} title={title} onClose={onDismiss ?? onCancel}>
       {description ? (
         <p className="text-sm leading-relaxed text-[var(--muted)]">{description}</p>
       ) : null}

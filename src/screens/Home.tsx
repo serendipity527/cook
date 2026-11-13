@@ -1,19 +1,35 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ChevronRight, Copy, PenLine, Plus, Settings, Sparkles } from 'lucide-react';
-import { forkBuiltin, listAllRecipes, listSessions } from '@/data/repo';
+import { forkBuiltin, getRecipe, listAllRecipes, listSessions } from '@/data/repo';
 import { useCook } from '@/runtime/CookProvider';
 import { useAppStore } from '@/store/useAppStore';
 import { ActionSheet, type ActionSheetAction } from '@/components/ActionSheet';
+import { ConfirmSheet } from '@/components/ConfirmSheet';
 import { RecipeCard } from '@/components/RecipeCard';
 import { useToast } from '@/components/ToastProvider';
 
+function formatAge(ageMs: number): string {
+  if (ageMs < 60 * 60 * 1000) {
+    return '不到 1 小时';
+  }
+
+  if (ageMs < 24 * 60 * 60 * 1000) {
+    return `${Math.round(ageMs / (60 * 60 * 1000))} 小时`;
+  }
+
+  return `${Math.round(ageMs / (24 * 60 * 60 * 1000))} 天`;
+}
+
 export function Home() {
   const navigate = useAppStore((state) => state.navigate);
-  const { hasResume, resume } = useCook();
+  const resetTo = useAppStore((state) => state.resetTo);
+  const { resumeInfo, resume, discardResume } = useCook();
   const { showToast } = useToast();
   const [newOpen, setNewOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [resumeConfirmOpen, setResumeConfirmOpen] = useState(false);
+  const [recipeMissing, setRecipeMissing] = useState(false);
   const recipeRows = useLiveQuery(() => listAllRecipes(), []);
   const sessionRows = useLiveQuery(() => listSessions(), []);
   const recipes = useMemo(() => recipeRows ?? [], [recipeRows]);
@@ -46,10 +62,64 @@ export function Home() {
     return result;
   }, [recipes, sessions]);
 
-  const handleResume = () => {
-    if (resume()) {
-      navigate({ name: 'cook' });
+  useEffect(() => {
+    if (!resumeInfo) {
+      setRecipeMissing(false);
+      return;
     }
+
+    let cancelled = false;
+
+    void getRecipe(resumeInfo.recipeId)
+      .then((recipe) => {
+        if (!cancelled) {
+          setRecipeMissing(!recipe);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRecipeMissing(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [resumeInfo]);
+
+  const handleResume = () => {
+    if (!resumeInfo) {
+      return;
+    }
+
+    if (recipeMissing) {
+      discardResume();
+      showToast({ message: '已丢弃上次的记录' });
+      return;
+    }
+
+    if (!resumeInfo.fresh) {
+      setResumeConfirmOpen(true);
+      return;
+    }
+
+    if (resume()) {
+      resetTo([{ name: 'home' }, { name: 'cook' }]);
+    }
+  };
+
+  const continueStaleResume = () => {
+    setResumeConfirmOpen(false);
+
+    if (resume()) {
+      resetTo([{ name: 'home' }, { name: 'cook' }]);
+    }
+  };
+
+  const discardStaleResume = () => {
+    setResumeConfirmOpen(false);
+    discardResume();
+    showToast({ message: '已丢弃上次的记录' });
   };
 
   const handleCopyBuiltin = async (recipeId: string) => {
@@ -108,17 +178,41 @@ export function Home() {
         </button>
       </header>
 
-      {hasResume ? (
+      {resumeInfo ? (
         <button
           type="button"
           onClick={handleResume}
-          className="flex w-full items-center justify-between gap-4 rounded-3xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 p-5 text-left transition active:scale-[0.995]"
+          className={
+            recipeMissing
+              ? 'flex w-full items-center justify-between gap-4 rounded-3xl border border-[var(--danger)]/30 bg-[var(--danger)]/5 p-5 text-left transition active:scale-[0.995]'
+              : 'flex w-full items-center justify-between gap-4 rounded-3xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 p-5 text-left transition active:scale-[0.995]'
+          }
         >
-          <span>
-            <span className="text-xs text-[var(--accent-2)]">上次没做完</span>
-            <span className="mt-1 block text-lg font-semibold">继续回到灶台</span>
+          <span className="min-w-0">
+            <span
+              className={
+                recipeMissing
+                  ? 'text-xs text-[var(--danger)]'
+                  : 'text-xs text-[var(--accent-2)]'
+              }
+            >
+              {recipeMissing
+                ? '上次的菜谱已删除'
+                : resumeInfo.fresh
+                  ? '上次没做完'
+                  : `上次没做完 · ${formatAge(resumeInfo.ageMs)}前`}
+            </span>
+            <span className="mt-1 block truncate text-lg font-semibold">
+              {recipeMissing
+                ? '点这里丢弃这条记录'
+                : `${resumeInfo.title} · 第 ${resumeInfo.stepIndex + 1}/${resumeInfo.totalSteps} 步`}
+            </span>
           </span>
-          <ChevronRight className="text-[var(--accent-2)]" />
+          <ChevronRight
+            className={
+              recipeMissing ? 'shrink-0 text-[var(--danger)]' : 'shrink-0 text-[var(--accent-2)]'
+            }
+          />
         </button>
       ) : null}
 
@@ -212,6 +306,21 @@ export function Home() {
         title="复制哪道内置菜？"
         actions={copyActions}
         onClose={() => setCopyOpen(false)}
+      />
+      <ConfirmSheet
+        open={resumeConfirmOpen}
+        title="继续上次做菜？"
+        description={
+          resumeInfo
+            ? `「${resumeInfo.title}」停在第 ${resumeInfo.stepIndex + 1}/${resumeInfo.totalSteps} 步，已经过了 ${formatAge(resumeInfo.ageMs)}。继续会按现在的时间补算。`
+            : ''
+        }
+        cancelLabel="继续做"
+        confirmLabel="丢弃这次"
+        tone="danger"
+        onCancel={continueStaleResume}
+        onDismiss={() => setResumeConfirmOpen(false)}
+        onConfirm={discardStaleResume}
       />
     </main>
   );

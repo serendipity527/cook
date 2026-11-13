@@ -22,7 +22,7 @@ import {
   type CookEvent,
   type CookState,
 } from './machine';
-import { clearSnapshot, loadSnapshot, saveSnapshot } from './snapshot';
+import { clearSnapshot, peekSnapshot, saveSnapshot, type SnapshotPeek } from './snapshot';
 import { useWakeLock } from './useWakeLock';
 
 type RootAction =
@@ -61,27 +61,63 @@ function rootReducer(state: CookState | null, action: RootAction): CookState | n
   return cookReducer(state, action.event);
 }
 
+export interface ResumeInfo {
+  recipeId: string;
+  title: string;
+  stepIndex: number;
+  totalSteps: number;
+  savedAt: number;
+  ageMs: number;
+  fresh: boolean;
+}
+
 interface CookContextValue {
   state: CookState | null;
-  hasResume: boolean;
+  resumeInfo: ResumeInfo | null;
   prepare: (recipe: Recipe) => void;
   begin: (recipe: Recipe) => void;
   startCooking: () => void;
   resume: () => boolean;
+  discardResume: () => void;
   reset: () => void;
   dispatch: (event: CookEvent) => void;
 }
 
 const CookContext = createContext<CookContextValue | null>(null);
 
+function toResumeInfo(snapshot: SnapshotPeek): ResumeInfo {
+  return {
+    recipeId: snapshot.state.recipe.id,
+    title: snapshot.state.recipe.title,
+    stepIndex: snapshot.state.stepIndex,
+    totalSteps: snapshot.state.recipe.steps.length,
+    savedAt: snapshot.savedAt,
+    ageMs: snapshot.ageMs,
+    fresh: snapshot.fresh,
+  };
+}
+
 export function CookProvider({ children }: { children: ReactNode }) {
   const [state, rawDispatch] = useReducer(rootReducer, null);
-  const [hasResume, setHasResume] = useState(() => loadSnapshot() !== null);
+  const initialSnapshotRef = useRef<SnapshotPeek | null | undefined>(undefined);
+
+  if (initialSnapshotRef.current === undefined) {
+    initialSnapshotRef.current = peekSnapshot();
+  }
+
+  const initialSnapshot = initialSnapshotRef.current;
+  const [resumeInfo, setResumeInfo] = useState<ResumeInfo | null>(() =>
+    initialSnapshot?.state.phase === 'cooking' ? toResumeInfo(initialSnapshot) : null,
+  );
+  const [booting, setBooting] = useState(() =>
+    Boolean(initialSnapshot?.fresh && initialSnapshot.state.phase === 'cooking'),
+  );
   const speechEnabled = useAppStore((selector) => selector.speechEnabled);
   const speechRate = useAppStore((selector) => selector.speechRate);
   const savedSessionRef = useRef<string | null>(null);
   const skipFirstSpeechRef = useRef(false);
   const previousStateRef = useRef<CookState | null>(null);
+  const autoResumeRef = useRef(false);
 
   const dispatch = useCallback((event: CookEvent) => {
     rawDispatch({ type: 'event', event });
@@ -95,7 +131,7 @@ export function CookProvider({ children }: { children: ReactNode }) {
     void audio.unlock();
     skipFirstSpeechRef.current = false;
     savedSessionRef.current = null;
-    setHasResume(false);
+    setResumeInfo(null);
     clearSnapshot();
     rawDispatch({ type: 'begin', recipe, now: Date.now() });
   }, []);
@@ -104,33 +140,60 @@ export function CookProvider({ children }: { children: ReactNode }) {
     void audio.unlock();
     skipFirstSpeechRef.current = false;
     savedSessionRef.current = null;
-    setHasResume(false);
+    setResumeInfo(null);
     clearSnapshot();
     rawDispatch({ type: 'start', now: Date.now() });
   }, []);
 
   const resume = useCallback(() => {
-    const snapshot = loadSnapshot();
+    const snapshot = peekSnapshot();
 
-    if (!snapshot) {
-      setHasResume(false);
+    if (!snapshot || snapshot.state.phase !== 'cooking') {
+      setResumeInfo(null);
       return false;
     }
 
     const restored = reconcileAfterRestore(snapshot.state, Date.now());
     skipFirstSpeechRef.current = true;
     savedSessionRef.current = null;
-    setHasResume(false);
+    setResumeInfo(null);
     rawDispatch({ type: 'replace', state: restored });
     return true;
+  }, []);
+
+  const discardResume = useCallback(() => {
+    clearSnapshot();
+    setResumeInfo(null);
   }, []);
 
   const reset = useCallback(() => {
     audio.stopSpeak();
     clearSnapshot();
     savedSessionRef.current = null;
-    setHasResume(false);
+    setResumeInfo(null);
     rawDispatch({ type: 'replace', state: null });
+  }, []);
+
+  useEffect(() => {
+    if (autoResumeRef.current) {
+      return;
+    }
+
+    autoResumeRef.current = true;
+    const snapshot = peekSnapshot();
+
+    if (!snapshot?.fresh || snapshot.state.phase !== 'cooking') {
+      setBooting(false);
+      return;
+    }
+
+    const restored = reconcileAfterRestore(snapshot.state, Date.now());
+    skipFirstSpeechRef.current = true;
+    savedSessionRef.current = null;
+    setResumeInfo(null);
+    rawDispatch({ type: 'replace', state: restored });
+    useAppStore.getState().resetTo([{ name: 'home' }, { name: 'cook' }]);
+    setBooting(false);
   }, []);
 
   useWakeLock(state?.phase === 'cooking');
@@ -211,16 +274,35 @@ export function CookProvider({ children }: { children: ReactNode }) {
   const value = useMemo<CookContextValue>(
     () => ({
       state,
-      hasResume,
+      resumeInfo,
       prepare,
       begin,
       startCooking,
       resume,
+      discardResume,
       reset,
       dispatch,
     }),
-    [state, hasResume, prepare, begin, startCooking, resume, reset, dispatch],
+    [
+      state,
+      resumeInfo,
+      prepare,
+      begin,
+      startCooking,
+      resume,
+      discardResume,
+      reset,
+      dispatch,
+    ],
   );
+
+  if (booting) {
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-[var(--bg)] px-8 text-center">
+        <p className="text-sm text-[var(--muted)]">正在回到灶台…</p>
+      </main>
+    );
+  }
 
   return <CookContext.Provider value={value}>{children}</CookContext.Provider>;
 }

@@ -3,7 +3,7 @@ import { RecipeSchema, StepLogSchema } from '@shared/schema';
 import type { CookState } from './machine';
 
 export const SNAPSHOT_KEY = 'kaihuo:cook-session';
-export const SNAPSHOT_MAX_AGE_MS = 4 * 60 * 60 * 1000;
+export const SNAPSHOT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 const CookStateSnapshotSchema = z.object({
   recipe: RecipeSchema,
@@ -33,6 +33,11 @@ export interface CookSnapshot {
   savedAt: number;
 }
 
+export interface SnapshotPeek extends CookSnapshot {
+  ageMs: number;
+  fresh: boolean;
+}
+
 export function saveSnapshot(state: CookState, now = Date.now()): void {
   if (typeof localStorage === 'undefined') {
     return;
@@ -45,7 +50,10 @@ export function saveSnapshot(state: CookState, now = Date.now()): void {
   }
 }
 
-export function loadSnapshot(now = Date.now()): CookSnapshot | null {
+/**
+ * 只读取，不按年龄删除。过期的快照仍要留给首页恢复条。
+ */
+export function peekSnapshot(now = Date.now()): SnapshotPeek | null {
   if (typeof localStorage === 'undefined') {
     return null;
   }
@@ -63,21 +71,35 @@ export function loadSnapshot(now = Date.now()): CookSnapshot | null {
       return null;
     }
 
-    if (now - parsed.data.savedAt > SNAPSHOT_MAX_AGE_MS) {
-      clearSnapshot();
-      return null;
-    }
-
     if (parsed.data.state.phase === 'done') {
       clearSnapshot();
       return null;
     }
 
-    return parsed.data as CookSnapshot;
+    const ageMs = Math.max(0, now - parsed.data.savedAt);
+
+    return {
+      ...parsed.data,
+      ageMs,
+      fresh: ageMs <= SNAPSHOT_MAX_AGE_MS,
+    };
   } catch {
     clearSnapshot();
     return null;
   }
+}
+
+/**
+ * 自动恢复只接受 24 小时内的快照；过期快照由用户从首页确认。
+ */
+export function loadSnapshot(now = Date.now()): CookSnapshot | null {
+  const peek = peekSnapshot(now);
+
+  if (!peek?.fresh) {
+    return null;
+  }
+
+  return { state: peek.state, savedAt: peek.savedAt };
 }
 
 export function clearSnapshot(): void {
