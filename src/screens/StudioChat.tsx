@@ -11,6 +11,7 @@ import {
 import { normalizeDraft } from '@/ai/normalizeDraft';
 import { requestPersistence, saveRecipe } from '@/data/repo';
 import { formatSeconds } from '@/lib/format';
+import { aiErrorMessage } from '@/lib/aiError';
 import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
 import { DraftEditor } from '@/components/DraftEditor';
@@ -161,7 +162,7 @@ export function StudioChat() {
       {error ? (
         <div className="mt-6 rounded-2xl border border-[var(--danger)]/30 bg-[var(--danger)]/10 p-4 text-sm leading-relaxed">
           <p className="font-medium text-[var(--danger)]">生成失败了</p>
-          <p className="mt-1 text-[var(--muted)]">{error.message}</p>
+          <p className="mt-1 text-[var(--muted)]">{aiErrorMessage(error)}</p>
           <p className="mt-1 text-xs text-[var(--muted)]">
             如果是第一次使用，请确认网关已配置 AI_API_KEY 后重启。
           </p>
