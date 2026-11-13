@@ -247,10 +247,6 @@ export function Home() {
         新建一道菜
       </button>
 
-      <footer className="pt-2 text-center text-xs text-[var(--muted)]">
-        数据存在这台设备 · 断网也能做菜
-      </footer>
-
       <ActionSheet
         open={newOpen}
         title="新建菜谱"

@@ -13,7 +13,6 @@ import {
 } from '@/data/repo';
 import { backupFilename, downloadJson } from '@/lib/download';
 import { useRequestBack } from '@/navigation/NavigationProvider';
-import { useInstallPrompt } from '@/pwa/useInstallPrompt';
 import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
 import { ConfirmSheet } from '@/components/ConfirmSheet';
@@ -31,7 +30,6 @@ export function Studio() {
   const setSpeechRate = useAppStore((state) => state.setSpeechRate);
   const recipes = useLiveQuery(() => listUserRecipes(), []) ?? [];
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const install = useInstallPrompt();
   const { showToast } = useToast();
   const [pendingDelete, setPendingDelete] = useState<Recipe | null>(null);
   const [estimate, setEstimate] = useState<{ usage: number; quota: number } | null>(null);
@@ -115,18 +113,6 @@ export function Studio() {
       });
     } catch {
       showToast({ message: '删除失败，请重试', tone: 'danger' });
-    }
-  };
-
-  const handleInstall = async () => {
-    const outcome = await install.promptInstall();
-
-    if (outcome === 'accepted') {
-      showToast({ message: '已开始安装，请按系统提示完成', tone: 'success' });
-    } else if (outcome === 'dismissed') {
-      showToast({ message: '已取消安装' });
-    } else {
-      showToast({ message: '浏览器没有弹出安装入口，请从浏览器菜单选择“安装应用”' });
     }
   };
 
@@ -299,30 +285,6 @@ export function Studio() {
               </button>
             ))}
           </div>
-        </div>
-      </section>
-
-      <section className="mt-8">
-        <h2 className="mb-3 text-sm font-medium text-[var(--muted)]">安装到主屏</h2>
-        <div className="rounded-2xl bg-[var(--surface)] p-4">
-          {install.installed ? (
-            <p className="text-sm text-[var(--muted)]">已安装，可以从主屏直接打开。</p>
-          ) : (
-            <>
-              {install.canInstall ? (
-                <BigButton onClick={() => void handleInstall()}>安装到主屏</BigButton>
-              ) : (
-                <p className="text-sm leading-relaxed text-[var(--muted)]">
-                  {install.isIOS
-                    ? 'Safari 里点“分享”，再选“添加到主屏幕”。'
-                    : '用 Chrome / Edge 打开后，从浏览器菜单选择“安装应用”或“添加到主屏幕”。'}
-                </p>
-              )}
-              <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
-                安装后是全屏体验，断网也能做菜；iOS 上还能避免未安装站点被清理。
-              </p>
-            </>
-          )}
         </div>
       </section>
 
