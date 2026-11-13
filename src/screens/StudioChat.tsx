@@ -12,6 +12,7 @@ import {
 import { normalizeDraft } from '@/ai/normalizeDraft';
 import { listAllRecipes, requestPersistence, saveRecipe } from '@/data/repo';
 import { aiErrorMessage } from '@/lib/aiError';
+import { useRequestBack } from '@/navigation/NavigationProvider';
 import { useAppStore } from '@/store/useAppStore';
 import { useChatStore } from '@/store/useChatStore';
 import { BigButton } from '@/components/BigButton';
@@ -37,6 +38,8 @@ function getAiSessionId(): string {
 
 export function StudioChat() {
   const navigate = useAppStore((store) => store.navigate);
+  const resetTo = useAppStore((store) => store.resetTo);
+  const requestBack = useRequestBack();
   const recipeRows = useLiveQuery(() => listAllRecipes(), []);
   const recipes = useMemo(() => recipeRows ?? [], [recipeRows]);
   const messages = useChatStore((state) => state.messages);
@@ -167,7 +170,7 @@ export function StudioChat() {
       void requestPersistence().catch(() => undefined);
       resetChat();
       lastSpecRef.current = null;
-      navigate({ name: 'detail', recipeId: recipe.id });
+      resetTo([{ name: 'home' }, { name: 'detail', recipeId: recipe.id }]);
     } catch (saveFailure) {
       setSaveError(saveFailure instanceof Error ? saveFailure.message : '保存失败，请重试');
     } finally {
@@ -189,9 +192,9 @@ export function StudioChat() {
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() => navigate({ name: 'home' })}
+          onClick={requestBack}
           className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--surface)]"
-          aria-label="返回首页"
+          aria-label="返回"
         >
           <ArrowLeft size={20} />
         </button>

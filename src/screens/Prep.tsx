@@ -2,12 +2,15 @@ import { useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeft, Check } from 'lucide-react';
 import { getRecipe } from '@/data/repo';
+import { useRequestBack } from '@/navigation/NavigationProvider';
 import { useCook } from '@/runtime/CookProvider';
 import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
 
 export function Prep({ recipeId }: { recipeId: string }) {
   const navigate = useAppStore((state) => state.navigate);
+  const resetTo = useAppStore((state) => state.resetTo);
+  const requestBack = useRequestBack();
   const { begin } = useCook();
   const recipe = useLiveQuery(async () => (await getRecipe(recipeId)) ?? null, [recipeId]);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
@@ -21,7 +24,7 @@ export function Prep({ recipeId }: { recipeId: string }) {
     return (
       <Centered>
         <p className="text-lg font-semibold">菜谱找不到了</p>
-        <BigButton className="mt-6" onClick={() => navigate({ name: 'home' })}>
+        <BigButton className="mt-6" onClick={() => resetTo([{ name: 'home' }])}>
           回首页
         </BigButton>
       </Centered>
@@ -50,7 +53,7 @@ export function Prep({ recipeId }: { recipeId: string }) {
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-32 pt-6">
       <button
         type="button"
-        onClick={() => navigate({ name: 'detail', recipeId })}
+        onClick={requestBack}
         className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--surface)]"
         aria-label="返回菜谱"
       >

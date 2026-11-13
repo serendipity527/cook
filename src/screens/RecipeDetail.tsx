@@ -3,12 +3,15 @@ import { useState, type ReactNode } from 'react';
 import { ArrowLeft, Clock3, Pencil, Users } from 'lucide-react';
 import { isTimedStep } from '@shared/schema';
 import { forkBuiltin, getRecipe } from '@/data/repo';
+import { useRequestBack } from '@/navigation/NavigationProvider';
 import { formatEstimatedMinutes, formatRange, formatSeconds } from '@/lib/format';
 import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
 
 export function RecipeDetail({ recipeId }: { recipeId: string }) {
   const navigate = useAppStore((state) => state.navigate);
+  const resetTo = useAppStore((state) => state.resetTo);
+  const requestBack = useRequestBack();
   const recipe = useLiveQuery(async () => (await getRecipe(recipeId)) ?? null, [recipeId]);
   const [forking, setForking] = useState(false);
 
@@ -21,7 +24,7 @@ export function RecipeDetail({ recipeId }: { recipeId: string }) {
       <Centered>
         <p className="text-lg font-semibold">菜谱找不到了</p>
         <p className="mt-2 text-sm text-[var(--muted)]">它可能已经被删除。</p>
-        <BigButton className="mt-6" onClick={() => navigate({ name: 'home' })}>
+        <BigButton className="mt-6" onClick={() => resetTo([{ name: 'home' }])}>
           回首页
         </BigButton>
       </Centered>
@@ -52,9 +55,9 @@ export function RecipeDetail({ recipeId }: { recipeId: string }) {
     <main className="mx-auto min-h-dvh w-full max-w-md px-5 pb-32 pt-6">
       <button
         type="button"
-        onClick={() => navigate({ name: 'home' })}
+        onClick={requestBack}
         className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--text)]"
-        aria-label="返回首页"
+        aria-label="返回"
       >
         <ArrowLeft size={20} />
       </button>

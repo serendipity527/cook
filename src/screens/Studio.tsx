@@ -11,6 +11,7 @@ import {
   requestPersistence,
 } from '@/data/repo';
 import { backupFilename, downloadJson } from '@/lib/download';
+import { useRequestBack } from '@/navigation/NavigationProvider';
 import { useInstallPrompt } from '@/pwa/useInstallPrompt';
 import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
@@ -19,6 +20,7 @@ const speechRates = [0.9, 1.0, 1.1];
 
 export function Studio() {
   const navigate = useAppStore((state) => state.navigate);
+  const requestBack = useRequestBack();
   const speechEnabled = useAppStore((state) => state.speechEnabled);
   const speechRate = useAppStore((state) => state.speechRate);
   const setSpeechEnabled = useAppStore((state) => state.setSpeechEnabled);
@@ -97,9 +99,9 @@ export function Studio() {
     <main className="mx-auto min-h-dvh w-full max-w-md px-5 pb-12 pt-6">
       <button
         type="button"
-        onClick={() => navigate({ name: 'home' })}
+        onClick={requestBack}
         className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--surface)]"
-        aria-label="返回首页"
+        aria-label="返回"
       >
         <ArrowLeft size={20} />
       </button>

@@ -1,3 +1,5 @@
+import { ToastProvider } from './components/ToastProvider';
+import { NavigationProvider } from './navigation/NavigationProvider';
 import { CookProvider } from './runtime/CookProvider';
 import { useAppStore } from './store/useAppStore';
 import { Cook } from './screens/Cook';
@@ -13,15 +15,19 @@ export default function App() {
   const view = useAppStore((state) => state.view);
 
   return (
-    <CookProvider>
-      {view.name === 'home' ? <Home /> : null}
-      {view.name === 'detail' ? <RecipeDetail recipeId={view.recipeId} /> : null}
-      {view.name === 'prep' ? <Prep recipeId={view.recipeId} /> : null}
-      {view.name === 'cook' ? <Cook /> : null}
-      {view.name === 'done' ? <Done /> : null}
-      {view.name === 'studio' ? <Studio /> : null}
-      {view.name === 'chat' ? <StudioChat /> : null}
-      {view.name === 'edit' ? <RecipeEditor recipeId={view.recipeId} /> : null}
-    </CookProvider>
+    <ToastProvider>
+      <NavigationProvider>
+        <CookProvider>
+          {view.name === 'home' ? <Home /> : null}
+          {view.name === 'detail' ? <RecipeDetail recipeId={view.recipeId} /> : null}
+          {view.name === 'prep' ? <Prep recipeId={view.recipeId} /> : null}
+          {view.name === 'cook' ? <Cook /> : null}
+          {view.name === 'done' ? <Done /> : null}
+          {view.name === 'studio' ? <Studio /> : null}
+          {view.name === 'chat' ? <StudioChat /> : null}
+          {view.name === 'edit' ? <RecipeEditor recipeId={view.recipeId} /> : null}
+        </CookProvider>
+      </NavigationProvider>
+    </ToastProvider>
   );
 }

@@ -1,26 +1,60 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { ArrowLeft } from 'lucide-react';
 import { DraftSpecSchema, type DraftSpec } from '@shared/schema';
 import { normalizeDraft } from '@/ai/normalizeDraft';
 import { getRecipe, saveRecipe } from '@/data/repo';
 import { recipeToDraft } from '@/lib/recipeToDraft';
+import { useBackGuard, useRequestBack } from '@/navigation/NavigationProvider';
 import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
+import { ConfirmSheet } from '@/components/ConfirmSheet';
 import { DraftEditor } from '@/components/DraftEditor';
 
 export function RecipeEditor({ recipeId }: { recipeId: string }) {
-  const navigate = useAppStore((store) => store.navigate);
+  const resetTo = useAppStore((store) => store.resetTo);
+  const back = useAppStore((store) => store.back);
+  const requestBack = useRequestBack();
   const recipe = useLiveQuery(async () => (await getRecipe(recipeId)) ?? null, [recipeId]);
   const [spec, setSpec] = useState<DraftSpec | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const baselineRef = useRef<string | null>(null);
+  const seededIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (recipe) {
-      setSpec(recipeToDraft(recipe));
+    if (recipe && seededIdRef.current !== recipe.id) {
+      const next = recipeToDraft(recipe);
+      seededIdRef.current = recipe.id;
+      baselineRef.current = JSON.stringify(next);
+      setSpec(next);
     }
   }, [recipe]);
+
+  const dirty = Boolean(spec && baselineRef.current && JSON.stringify(spec) !== baselineRef.current);
+
+  useBackGuard(() => {
+    if (discardOpen) {
+      setDiscardOpen(false);
+      return true;
+    }
+
+    if (!dirty) {
+      return false;
+    }
+
+    setDiscardOpen(true);
+    return true;
+  });
+
+  const leaveWithoutSaving = () => {
+    setDiscardOpen(false);
+
+    if (!back()) {
+      resetTo([{ name: 'home' }]);
+    }
+  };
 
   if (recipe === undefined || (recipe !== null && !spec)) {
     return <Centered>加载中…</Centered>;
@@ -30,7 +64,7 @@ export function RecipeEditor({ recipeId }: { recipeId: string }) {
     return (
       <Centered>
         <p className="text-lg font-semibold">菜谱找不到了</p>
-        <BigButton className="mt-6" onClick={() => navigate({ name: 'home' })}>
+        <BigButton className="mt-6" onClick={() => resetTo([{ name: 'home' }])}>
           回首页
         </BigButton>
       </Centered>
@@ -42,10 +76,7 @@ export function RecipeEditor({ recipeId }: { recipeId: string }) {
       <Centered>
         <p className="text-lg font-semibold">内置菜谱不能直接编辑</p>
         <p className="mt-2 text-sm text-[var(--muted)]">请从菜谱详情页复制一份再编辑。</p>
-        <BigButton
-          className="mt-6"
-          onClick={() => navigate({ name: 'detail', recipeId: recipe.id })}
-        >
+        <BigButton className="mt-6" onClick={requestBack}>
           返回菜谱
         </BigButton>
       </Centered>
@@ -70,7 +101,7 @@ export function RecipeEditor({ recipeId }: { recipeId: string }) {
     try {
       const updated = normalizeDraft(parsed.data, recipe);
       await saveRecipe(updated);
-      navigate({ name: 'detail', recipeId: updated.id });
+      resetTo([{ name: 'home' }, { name: 'detail', recipeId: updated.id }]);
     } catch (saveFailure) {
       setError(saveFailure instanceof Error ? saveFailure.message : '保存失败，请重试');
     } finally {
@@ -82,7 +113,7 @@ export function RecipeEditor({ recipeId }: { recipeId: string }) {
     <main className="mx-auto min-h-dvh w-full max-w-md px-5 pb-36 pt-6">
       <button
         type="button"
-        onClick={() => navigate({ name: 'detail', recipeId })}
+        onClick={requestBack}
         className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--surface)]"
         aria-label="返回菜谱"
       >
@@ -110,6 +141,17 @@ export function RecipeEditor({ recipeId }: { recipeId: string }) {
           </BigButton>
         </div>
       </div>
+
+      <ConfirmSheet
+        open={discardOpen}
+        title="还有修改没保存"
+        description="离开后这次修改会丢失。"
+        cancelLabel="继续编辑"
+        confirmLabel="放弃修改"
+        tone="danger"
+        onCancel={() => setDiscardOpen(false)}
+        onConfirm={leaveWithoutSaving}
+      />
     </main>
   );
 }

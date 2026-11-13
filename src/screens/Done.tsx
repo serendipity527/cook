@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { isTimedStep, type Recipe } from '@shared/schema';
 import { applyDurationSuggestions, suggestDurations } from '@/lib/calibration';
 import { formatSeconds } from '@/lib/format';
@@ -9,9 +9,15 @@ import { BigButton } from '@/components/BigButton';
 
 export function Done() {
   const { state, begin, reset } = useCook();
-  const navigate = useAppStore((store) => store.navigate);
+  const resetTo = useAppStore((store) => store.resetTo);
   const [updatedRecipe, setUpdatedRecipe] = useState<Recipe | null>(null);
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  useEffect(() => {
+    if (!state || state.phase !== 'done') {
+      resetTo([{ name: 'home' }]);
+    }
+  }, [state, resetTo]);
 
   if (!state || state.phase !== 'done') {
     return null;
@@ -145,7 +151,7 @@ export function Done() {
         <BigButton
           onClick={() => {
             begin(recipe);
-            navigate({ name: 'cook' });
+            resetTo([{ name: 'home' }, { name: 'cook' }]);
           }}
         >
           再做一次
@@ -154,7 +160,7 @@ export function Done() {
           variant="secondary"
           onClick={() => {
             reset();
-            navigate({ name: 'home' });
+            resetTo([{ name: 'home' }]);
           }}
         >
           回首页

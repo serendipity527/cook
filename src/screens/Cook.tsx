@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { isTimedStep } from '@shared/schema';
+import { useBackGuard } from '@/navigation/NavigationProvider';
 import { formatRange, formatSeconds } from '@/lib/format';
 import { useCook } from '@/runtime/CookProvider';
 import { stepElapsedMs, remainingMs } from '@/runtime/machine';
@@ -8,7 +9,6 @@ import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
 import { CountdownRing } from '@/components/CountdownRing';
 import { StepProgress } from '@/components/StepProgress';
-import { Done } from './Done';
 
 const heatLabels = {
   low: '小火',
@@ -18,8 +18,29 @@ const heatLabels = {
 
 export function Cook() {
   const navigate = useAppStore((state) => state.navigate);
+  const resetTo = useAppStore((state) => state.resetTo);
   const { state, dispatch } = useCook();
   const [abortOpen, setAbortOpen] = useState(false);
+
+  useBackGuard(() => {
+    if (abortOpen) {
+      setAbortOpen(false);
+      return true;
+    }
+
+    if (state?.phase === 'cooking') {
+      setAbortOpen(true);
+      return true;
+    }
+
+    return false;
+  });
+
+  useEffect(() => {
+    if (state?.phase === 'done') {
+      resetTo([{ name: 'home' }, { name: 'done' }]);
+    }
+  }, [state?.phase, resetTo]);
 
   const ticking =
     state?.phase === 'cooking' &&
@@ -48,7 +69,7 @@ export function Cook() {
   }
 
   if (state.phase === 'done') {
-    return <Done />;
+    return null;
   }
 
   const step = state.recipe.steps[state.stepIndex];
@@ -91,7 +112,7 @@ export function Cook() {
   const handleAbort = () => {
     setAbortOpen(false);
     dispatch({ type: 'ABORT', now: Date.now() });
-    navigate({ name: 'home' });
+    resetTo([{ name: 'home' }]);
   };
 
   return (
