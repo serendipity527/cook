@@ -32,10 +32,7 @@ export function ConfirmSheet({
       ) : null}
       <div className="mt-6 space-y-3">
         <BigButton onClick={onCancel}>{cancelLabel}</BigButton>
-        <BigButton
-          variant={tone === 'danger' ? 'danger' : 'secondary'}
-          onClick={onConfirm}
-        >
+        <BigButton variant={tone === 'danger' ? 'danger' : 'secondary'} onClick={onConfirm}>
           {confirmLabel}
         </BigButton>
       </div>

@@ -38,8 +38,7 @@ export function Cook() {
   }, [state]);
 
   const ticking =
-    state?.phase === 'cooking' &&
-    (state.stepState === 'running' || state.stepState === 'manual');
+    state?.phase === 'cooking' && (state.stepState === 'running' || state.stepState === 'manual');
   const now = useNow(ticking, 200);
 
   useEffect(() => {
@@ -156,9 +155,7 @@ export function Cook() {
 
   const canSkip =
     !isLastStep &&
-    (state.stepState === 'running' ||
-      state.stepState === 'paused' ||
-      state.stepState === 'manual');
+    (state.stepState === 'running' || state.stepState === 'paused' || state.stepState === 'manual');
 
   const handlePrimary = () => {
     if (!primary) {
@@ -263,8 +260,8 @@ export function Cook() {
   };
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-6 pt-6">
-      <header>
+    <main className="mx-auto flex h-dvh w-full max-w-md flex-col overflow-hidden px-5 pb-4 pt-6">
+      <header className="shrink-0">
         <div className="flex items-center justify-between gap-3">
           <p className="min-w-0 flex-1 truncate text-sm text-[var(--muted)]">
             {state.recipe.title}
@@ -300,118 +297,105 @@ export function Cook() {
         </p>
       </header>
 
-      <section className="flex flex-1 flex-col justify-center gap-5 py-6">
-        <div aria-live="polite" aria-atomic="true">
-          <div className="flex flex-wrap items-center gap-2">
-            {timed ? (
-              <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs text-[var(--accent-2)]">
-                定时 {formatSeconds(step.durationSec)}
-              </span>
-            ) : (
-              <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)]">
-                {step.suggestRange ? `建议 ${formatRange(step.suggestRange)}` : '看状态'}
-              </span>
-            )}
-            {heat ? (
-              <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)]">
-                {heat}
-              </span>
+      <section className="min-h-0 flex-1 overflow-y-auto">
+        <div className="flex min-h-full flex-col justify-center gap-4 py-4">
+          <div aria-live="polite" aria-atomic="true">
+            <div className="flex flex-wrap items-center gap-2">
+              {timed ? (
+                <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs text-[var(--accent-2)]">
+                  定时 {formatSeconds(step.durationSec)}
+                </span>
+              ) : (
+                <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)]">
+                  {step.suggestRange ? `建议 ${formatRange(step.suggestRange)}` : '看状态'}
+                </span>
+              )}
+              {heat ? (
+                <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)]">
+                  {heat}
+                </span>
+              ) : null}
+            </div>
+
+            <h1 className="mt-4 text-[clamp(1.75rem,8vw,2.5rem)] font-bold leading-snug tracking-tight">
+              {step.text}
+            </h1>
+
+            {step.tip ? (
+              <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-[var(--muted)]">
+                {step.tip}
+              </p>
             ) : null}
           </div>
 
-          <h1 className="mt-4 text-[clamp(1.75rem,8vw,2.5rem)] font-bold leading-snug tracking-tight">
-            {step.text}
-          </h1>
+          {timed ? (
+            <div className="space-y-3">
+              <CountdownRing
+                remainingMs={remaining}
+                totalMs={step.durationSec * 1000}
+                paused={state.stepState === 'paused'}
+                awaiting={state.stepState === 'awaiting'}
+              />
+              {state.stepState !== 'manual' ? (
+                <button
+                  type="button"
+                  onClick={handleExtend}
+                  className="mx-auto flex min-h-11 items-center justify-center rounded-full bg-white/5 px-4 text-sm text-[var(--accent-2)]"
+                >
+                  {state.stepState === 'awaiting' ? '再来 30 秒' : '+30 秒'}
+                </button>
+              ) : null}
+            </div>
+          ) : (
+            <div className="text-center">
+              <p className="text-[clamp(3.5rem,16vw,5.5rem)] font-bold tabular-nums tracking-tight">
+                {formatClock(elapsed)}
+              </p>
+              <p className="mt-3 text-sm text-[var(--muted)]">
+                {step.suggestRange
+                  ? `建议 ${formatRange(step.suggestRange)}，看状态决定`
+                  : '看状态，好了就点下一步'}
+              </p>
+            </div>
+          )}
 
-          {step.tip ? (
-            <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">{step.tip}</p>
-          ) : null}
-        </div>
-
-        {timed ? (
-          <div className="space-y-3">
-            <CountdownRing
-              remainingMs={remaining}
-              totalMs={step.durationSec * 1000}
-              paused={state.stepState === 'paused'}
-              awaiting={state.stepState === 'awaiting'}
-            />
-            {state.stepState !== 'manual' ? (
-              <button
-                type="button"
-                onClick={handleExtend}
-                className="mx-auto flex min-h-11 items-center justify-center rounded-full bg-white/5 px-4 text-sm text-[var(--accent-2)]"
-              >
-                {state.stepState === 'awaiting' ? '再来 30 秒' : '+30 秒'}
-              </button>
-            ) : null}
-          </div>
-        ) : (
-          <div className="text-center">
-            <p className="text-[clamp(3.5rem,16vw,5.5rem)] font-bold tabular-nums tracking-tight">
-              {formatClock(elapsed)}
-            </p>
-            <p className="mt-3 text-sm text-[var(--muted)]">
-              {step.suggestRange
-                ? `建议 ${formatRange(step.suggestRange)}，看状态决定`
-                : '看状态，好了就点下一步'}
-            </p>
-          </div>
-        )}
-
-        <div
-          className={
-            state.stepState === 'awaiting'
-              ? 'rounded-2xl bg-[var(--surface)] p-4'
-              : 'px-1'
-          }
-        >
-          <p className="text-xs text-[var(--muted)]">
-            {state.stepState === 'awaiting' ? '时间到 · 下一步' : '下一步'}
-          </p>
-          <p
+          <div
             className={
-              state.stepState === 'awaiting'
-                ? 'mt-1 text-lg font-medium'
-                : 'mt-1 truncate text-sm text-[var(--muted)]'
+              state.stepState === 'awaiting' ? 'rounded-2xl bg-[var(--surface)] p-4' : 'px-1'
             }
           >
-            {next ? next.text : '最后一步了，准备出锅。'}
-          </p>
+            <p className="text-xs text-[var(--muted)]">
+              {state.stepState === 'awaiting' ? '时间到 · 下一步' : '下一步'}
+            </p>
+            <p
+              className={
+                state.stepState === 'awaiting'
+                  ? 'mt-1 text-lg font-medium'
+                  : 'mt-1 truncate text-sm text-[var(--muted)]'
+              }
+            >
+              {next ? next.text : '最后一步了，准备出锅。'}
+            </p>
+          </div>
         </div>
       </section>
 
-      <footer className="space-y-3">
+      <footer className="shrink-0 space-y-3 pb-[env(safe-area-inset-bottom)]">
         {primary ? <BigButton onClick={handlePrimary}>{primary.label}</BigButton> : null}
 
         <div className="flex gap-2">
           {state.stepIndex > 0 ? (
-            <BigButton
-              variant="ghost"
-              size="compact"
-              className="flex-1"
-              onClick={handlePrev}
-            >
+            <BigButton variant="ghost" size="compact" className="flex-1" onClick={handlePrev}>
               上一步
             </BigButton>
           ) : null}
 
-          <BigButton
-            variant="ghost"
-            size="compact"
-            className="flex-1"
-            onClick={handleRelisten}
-          >
+          <BigButton variant="ghost" size="compact" className="flex-1" onClick={handleRelisten}>
             重听
           </BigButton>
 
           {canSkip ? (
-            <BigButton
-              variant="ghost"
-              size="compact"
-              className="flex-1"
-              onClick={handleSkip}
-            >
+            <BigButton variant="ghost" size="compact" className="flex-1" onClick={handleSkip}>
               跳过
             </BigButton>
           ) : null}

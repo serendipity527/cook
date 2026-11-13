@@ -191,9 +191,7 @@ export function Home() {
           <span className="min-w-0">
             <span
               className={
-                recipeMissing
-                  ? 'text-xs text-[var(--danger)]'
-                  : 'text-xs text-[var(--accent-2)]'
+                recipeMissing ? 'text-xs text-[var(--danger)]' : 'text-xs text-[var(--accent-2)]'
               }
             >
               {recipeMissing

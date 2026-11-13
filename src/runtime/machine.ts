@@ -391,8 +391,7 @@ export function toSession(state: CookState, now: number): CookSession {
     recipeUpdatedAt: state.recipe.updatedAt,
     startedAt: state.startedAt,
     endedAt: state.phase === 'done' ? (state.endedAt ?? now) : undefined,
-    status:
-      state.phase === 'done' ? (state.finishedEarly ? 'abandoned' : 'completed') : 'active',
+    status: state.phase === 'done' ? (state.finishedEarly ? 'abandoned' : 'completed') : 'active',
     steps,
   };
 }

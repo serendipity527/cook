@@ -48,7 +48,9 @@ export function RecipeEditor({ recipeId }: { recipeId?: string }) {
     }
   }, [isNew, recipe]);
 
-  const dirty = Boolean(spec && baselineRef.current && JSON.stringify(spec) !== baselineRef.current);
+  const dirty = Boolean(
+    spec && baselineRef.current && JSON.stringify(spec) !== baselineRef.current,
+  );
 
   useBackGuard(() => {
     if (discardOpen) {

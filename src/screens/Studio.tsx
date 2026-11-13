@@ -156,7 +156,9 @@ export function Studio() {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold">用 AI 新建菜谱</span>
-          <span className="mt-0.5 block text-xs text-[var(--muted)]">说一遍做法，生成可开火的步骤</span>
+          <span className="mt-0.5 block text-xs text-[var(--muted)]">
+            说一遍做法，生成可开火的步骤
+          </span>
         </span>
       </button>
 

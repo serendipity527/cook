@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { Recipe } from '@shared/schema';
-import { newId, saveSession } from '@/data/repo';
+import { getRecipe, newId, saveSession } from '@/data/repo';
 import { useAppStore } from '@/store/useAppStore';
 import { audio, vibrate } from './audio';
 import {
@@ -187,13 +187,24 @@ export function CookProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const restored = reconcileAfterRestore(snapshot.state, Date.now());
-    skipFirstSpeechRef.current = true;
-    savedSessionRef.current = null;
-    setResumeInfo(null);
-    rawDispatch({ type: 'replace', state: restored });
-    useAppStore.getState().resetTo([{ name: 'home' }, { name: 'cook' }]);
-    setBooting(false);
+    void getRecipe(snapshot.state.recipe.id)
+      .then((recipe) => {
+        if (!recipe) {
+          setBooting(false);
+          return;
+        }
+
+        const restored = reconcileAfterRestore(snapshot.state, Date.now());
+        skipFirstSpeechRef.current = true;
+        savedSessionRef.current = null;
+        setResumeInfo(null);
+        rawDispatch({ type: 'replace', state: restored });
+        useAppStore.getState().resetTo([{ name: 'home' }, { name: 'cook' }]);
+        setBooting(false);
+      })
+      .catch(() => {
+        setBooting(false);
+      });
   }, []);
 
   useWakeLock(state?.phase === 'cooking');
@@ -247,7 +258,8 @@ export function CookProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const enteredStep = !previous || previous.phase !== 'cooking' || previous.stepIndex !== state.stepIndex;
+    const enteredStep =
+      !previous || previous.phase !== 'cooking' || previous.stepIndex !== state.stepIndex;
 
     if (enteredStep) {
       if (skipFirstSpeechRef.current) {
@@ -264,10 +276,13 @@ export function CookProvider({ children }: { children: ReactNode }) {
       const nextStep = state.recipe.steps[state.stepIndex + 1];
       audio.chime();
       vibrate([200, 100, 200]);
-      audio.speak(nextStep ? `下一步，${nextStep.speak ?? nextStep.text}` : '最后一步完成，可以出锅了', {
-        enabled: speechEnabled,
-        rate: speechRate,
-      });
+      audio.speak(
+        nextStep ? `下一步，${nextStep.speak ?? nextStep.text}` : '最后一步完成，可以出锅了',
+        {
+          enabled: speechEnabled,
+          rate: speechRate,
+        },
+      );
     }
   }, [state, speechEnabled, speechRate]);
 
@@ -283,17 +298,7 @@ export function CookProvider({ children }: { children: ReactNode }) {
       reset,
       dispatch,
     }),
-    [
-      state,
-      resumeInfo,
-      prepare,
-      begin,
-      startCooking,
-      resume,
-      discardResume,
-      reset,
-      dispatch,
-    ],
+    [state, resumeInfo, prepare, begin, startCooking, resume, discardResume, reset, dispatch],
   );
 
   if (booting) {

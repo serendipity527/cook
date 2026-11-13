@@ -24,7 +24,7 @@ export function CountdownRing({
   const color = paused ? 'var(--muted)' : urgent ? 'var(--accent-2)' : 'var(--accent)';
 
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[min(300px,44dvh)]">
+    <div className="relative mx-auto aspect-square w-full max-w-[min(300px,32dvh)]">
       <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full -rotate-90">
         <circle
           cx={size / 2}
