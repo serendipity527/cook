@@ -12,7 +12,6 @@ import {
 import { normalizeDraft } from '@/ai/normalizeDraft';
 import { listAllRecipes, requestPersistence, saveRecipe } from '@/data/repo';
 import { aiErrorMessage } from '@/lib/aiError';
-import { localAssistantReply } from '@/lib/localAssistant';
 import { useAppStore } from '@/store/useAppStore';
 import { useChatStore } from '@/store/useChatStore';
 import { BigButton } from '@/components/BigButton';
@@ -136,19 +135,6 @@ export function StudioChat() {
 
     const history = messages.slice(-10);
     appendMessage({ role: 'user', content: text });
-
-    const local = localAssistantReply({
-      message: text,
-      recipes,
-      hasDraft: editedSpec !== null,
-      draftTitle: editedSpec?.title,
-    });
-
-    if (local) {
-      appendMessage({ role: 'assistant', content: local.reply });
-      setRecipeIds(local.recipeIds ?? []);
-      return;
-    }
 
     const currentDraft = DraftSpecSchema.safeParse(editedSpec);
 
