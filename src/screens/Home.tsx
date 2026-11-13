@@ -9,8 +9,10 @@ import { RecipeCard } from '@/components/RecipeCard';
 export function Home() {
   const navigate = useAppStore((state) => state.navigate);
   const { hasResume, resume } = useCook();
-  const recipes = useLiveQuery(() => listAllRecipes(), []) ?? [];
-  const sessions = useLiveQuery(() => listSessions(), []) ?? [];
+  const recipeRows = useLiveQuery(() => listAllRecipes(), []);
+  const sessionRows = useLiveQuery(() => listSessions(), []);
+  const recipes = useMemo(() => recipeRows ?? [], [recipeRows]);
+  const sessions = useMemo(() => sessionRows ?? [], [sessionRows]);
 
   const mine = recipes.filter((recipe) => recipe.source !== 'builtin');
   const builtins = recipes.filter((recipe) => recipe.source === 'builtin');

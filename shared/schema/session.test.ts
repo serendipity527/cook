@@ -36,8 +36,11 @@ describe('CookSessionSchema', () => {
   });
 
   it('allows an active session without endedAt', () => {
-    const { endedAt: _endedAt, ...active } = validSession;
-    const result = CookSessionSchema.safeParse({ ...active, status: 'active' });
+    const result = CookSessionSchema.safeParse({
+      ...validSession,
+      endedAt: undefined,
+      status: 'active',
+    });
     expect(result.success).toBe(true);
   });
 });
