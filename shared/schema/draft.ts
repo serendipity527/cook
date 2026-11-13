@@ -27,6 +27,7 @@ export const DraftRequestSchema = z.object({
   draft: DraftSpecSchema.nullable().optional(),
   message: z.string().min(1).max(2000),
   locale: z.string().max(20).default('zh-CN'),
+  sessionId: z.string().min(1).max(120).optional(),
 });
 
 export type ChatMessage = z.infer<typeof ChatMessageSchema>;

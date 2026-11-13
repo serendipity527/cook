@@ -27,9 +27,18 @@ npm run icons    # 由 public/icon.svg 重新生成 PWA 图标
 
 ```bash
 cp .env.example .env.local
-# 编辑 .env.local，填入 AI_API_KEY（DeepSeek 或任意 OpenAI 兼容服务）
+# 在 .env.local 填入 AI_API_KEY
 npm run dev:server
 ```
+
+默认使用 **OpenCode Go**：
+
+- `AI_BASE_URL=https://opencode.ai/inference/go/openai/v1`
+- `AI_MODEL=deepseek-v4.1-flash`
+
+也可以换成 DeepSeek 官方（`https://api.deepseek.com` + `deepseek-chat`）或其他 OpenAI 兼容服务。
+
+> **key 只写 `.env.local`**（已被 `.gitignore` 忽略）。`.env.example` 是提交到仓库的模板，只保留空值。
 
 没有配置 key 时，做饭流程和其他功能都能正常使用；只有 AI 录入会返回 503。
 

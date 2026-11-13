@@ -1,21 +1,18 @@
 import { Hono } from 'hono';
-import { streamObject, type RepairTextFunction } from 'ai';
+import { generateText } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
-import { DraftRequestSchema, DraftSpecSchema } from '@shared/schema';
+import { DraftRequestSchema, type DraftSpec } from '@shared/schema';
+import { extractDraftJson } from '../lib/draft-json';
 import { createRateLimiter } from '../lib/rate-limit';
-import { buildRecipePrompt, RECIPE_SYSTEM_PROMPT } from '../prompts/recipe';
+import {
+  buildRecipePrompt,
+  RECIPE_SYSTEM_PROMPT,
+  RECIPE_TEXT_CONTRACT,
+} from '../prompts/recipe';
 
 export const recipeRoute = new Hono();
 
 const limiter = createRateLimiter(20, 60_000);
-
-const repairJson: RepairTextFunction = async ({ text }) => {
-  const unfenced = text.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
-  const start = unfenced.indexOf('{');
-  const end = unfenced.lastIndexOf('}');
-
-  return start >= 0 && end > start ? unfenced.slice(start, end + 1) : null;
-};
 
 recipeRoute.post('/draft', async (c) => {
   const ip =
@@ -40,26 +37,64 @@ recipeRoute.post('/draft', async (c) => {
     return c.json({ error: '请求格式不正确' }, 400);
   }
 
+  const sessionId = parsed.data.sessionId ?? globalThis.crypto.randomUUID();
   const provider = createOpenAI({
     apiKey,
-    baseURL: process.env.AI_BASE_URL?.trim() || 'https://api.deepseek.com',
+    baseURL: process.env.AI_BASE_URL?.trim() || 'https://opencode.ai/inference/go/openai/v1',
     name: 'kaihuo',
+    headers: {
+      'User-Agent': 'kaihuo/0.1',
+      Accept: 'application/json',
+      'x-opencode-session': sessionId,
+    },
   });
-  const model = provider(process.env.AI_MODEL?.trim() || 'deepseek-chat');
+  const model = provider.chat(process.env.AI_MODEL?.trim() || 'deepseek-v4.1-flash');
+  const system = `${RECIPE_SYSTEM_PROMPT}\n\n${RECIPE_TEXT_CONTRACT}`;
+  const basePrompt = buildRecipePrompt(parsed.data.message, parsed.data.draft);
+
+  const generate = (prompt: string) =>
+    generateText({
+      model,
+      system,
+      prompt,
+      temperature: 0.3,
+    }).then((result) => result.text);
 
   try {
-    const result = streamObject({
-      model,
-      schema: DraftSpecSchema,
-      schemaName: 'RecipeDraft',
-      schemaDescription: '一份可直接下厨的中文菜谱草稿',
-      system: RECIPE_SYSTEM_PROMPT,
-      prompt: buildRecipePrompt(parsed.data.message, parsed.data.draft),
-      temperature: 0.3,
-      repairText: repairJson,
+    let text = await generate(basePrompt);
+    let draft: DraftSpec;
+
+    try {
+      draft = extractDraftJson(text);
+    } catch (firstError) {
+      console.warn(
+        '[kaihuo] first draft attempt did not validate, retrying',
+        firstError instanceof Error ? firstError.message : firstError,
+      );
+      text = await generate(
+        `${basePrompt}\n\n上一次输出没有通过校验。请严格只输出一个 JSON 对象，字段完整；timed 步骤必须有 durationSec，judgment 步骤不要 durationSec；不要 Markdown，不要解释。`,
+      );
+      draft = extractDraftJson(text);
+    }
+
+    const json = JSON.stringify(draft);
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        for (let index = 0; index < json.length; index += 80) {
+          controller.enqueue(encoder.encode(json.slice(index, index + 80)));
+          await new Promise((resolve) => setTimeout(resolve, 12));
+        }
+        controller.close();
+      },
     });
 
-    return result.toTextStreamResponse();
+    return new Response(stream, {
+      headers: {
+        'content-type': 'text/plain; charset=utf-8',
+        'cache-control': 'no-store',
+      },
+    });
   } catch (error) {
     console.error('[kaihuo] recipe draft failed', error);
     return c.json({ error: '生成失败，请稍后重试' }, 502);

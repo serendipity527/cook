@@ -19,6 +19,21 @@ import { DraftEditor } from '@/components/DraftEditor';
 const example =
   '番茄炒蛋，两个人吃。番茄两个切块，鸡蛋三个加盐打散。先热锅倒油，倒蛋液炒到凝固盛出，再炒番茄出汁，倒回鸡蛋，加盐糖翻匀出锅。';
 
+function getAiSessionId(): string {
+  const storageKey = 'kaihuo:ai-session';
+  const existing = window.localStorage.getItem(storageKey);
+
+  if (existing) {
+    return existing;
+  }
+
+  const id =
+    globalThis.crypto?.randomUUID?.() ??
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  window.localStorage.setItem(storageKey, id);
+  return id;
+}
+
 export function StudioChat() {
   const navigate = useAppStore((store) => store.navigate);
   const [input, setInput] = useState('');
@@ -27,6 +42,7 @@ export function StudioChat() {
   const [saving, setSaving] = useState(false);
   const [editedSpec, setEditedSpec] = useState<DraftSpec | null>(null);
   const lastSpecRef = useRef<DraftSpec | null>(null);
+  const sessionId = useMemo(() => getAiSessionId(), []);
 
   const { object, submit, isLoading, error, stop, clear } = useObject<
     typeof DraftSpecSchema,
@@ -82,7 +98,12 @@ export function StudioChat() {
     setEditedSpec(null);
     setInput('');
     setSaveError(null);
-    submit({ draft: current.success ? current.data : null, message: text, locale: 'zh-CN' });
+    submit({
+      draft: current.success ? current.data : null,
+      message: text,
+      locale: 'zh-CN',
+      sessionId,
+    });
   };
 
   const handleSave = async () => {
@@ -167,6 +188,18 @@ export function StudioChat() {
             如果是第一次使用，请确认网关已配置 AI_API_KEY 后重启。
           </p>
         </div>
+      ) : null}
+
+      {isLoading && !object ? (
+        <section className="mt-8 rounded-3xl bg-[var(--surface)] p-6">
+          <div className="flex items-center gap-3">
+            <span className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
+            <div>
+              <p className="text-sm font-medium">正在整理菜谱</p>
+              <p className="mt-1 text-xs text-[var(--muted)]">通常需要半分钟，先别关页面。</p>
+            </div>
+          </div>
+        </section>
       ) : null}
 
       {!object && !isLoading ? (
