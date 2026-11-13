@@ -99,7 +99,7 @@ export function Home() {
       {recent.length > 0 ? (
         <section>
           <h2 className="mb-3 text-sm font-medium text-[var(--muted)]">最近做过</h2>
-          <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
+          <div className="scrollbar-hide -mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
             {recent.map((recipe) => (
               <div key={recipe.id} className="w-72 shrink-0">
                 <RecipeCard
