@@ -85,3 +85,4 @@ public/     PWA 图标与静态资源
 - [docs/TECH_PLAN.md](docs/TECH_PLAN.md) — 产品与技术方案
 - [docs/TECH_STACK.md](docs/TECH_STACK.md) — 技术栈清单
 - [docs/MVP.md](docs/MVP.md) — MVP 功能与实现思路
+- [docs/UI_INTERACTION.md](docs/UI_INTERACTION.md) — 界面交互设计（提案）
