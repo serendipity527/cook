@@ -69,6 +69,45 @@ export async function deleteRecipe(id: string): Promise<void> {
   await db.recipes.put({ ...recipe, updatedAt: now, deletedAt: now });
 }
 
+export async function restoreRecipe(id: string): Promise<Recipe | undefined> {
+  if (isBuiltinRecipe(id)) {
+    throw new Error('内置菜谱不能恢复');
+  }
+
+  const recipe = await db.recipes.get(id);
+
+  if (!recipe || recipe.deletedAt === undefined) {
+    return recipe;
+  }
+
+  const restored = { ...recipe, updatedAt: Date.now(), deletedAt: undefined };
+  await db.recipes.put(restored);
+  return restored;
+}
+
+export async function duplicateRecipe(id: string): Promise<Recipe> {
+  if (isBuiltinRecipe(id)) {
+    return forkBuiltin(id);
+  }
+
+  const recipe = await getRecipe(id);
+
+  if (!recipe) {
+    throw new Error('菜谱不存在');
+  }
+
+  const now = Date.now();
+  return saveRecipe({
+    ...recipe,
+    id: newId('r'),
+    title: `${recipe.title} 副本`.slice(0, 40),
+    source: 'user',
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: undefined,
+  });
+}
+
 export async function forkBuiltin(id: string): Promise<Recipe> {
   const builtin = builtinRecipeMap.get(id);
 

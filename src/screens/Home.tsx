@@ -1,14 +1,19 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight, Settings, Sparkles } from 'lucide-react';
-import { listAllRecipes, listSessions } from '@/data/repo';
+import { ChevronRight, Copy, PenLine, Plus, Settings, Sparkles } from 'lucide-react';
+import { forkBuiltin, listAllRecipes, listSessions } from '@/data/repo';
 import { useCook } from '@/runtime/CookProvider';
 import { useAppStore } from '@/store/useAppStore';
+import { ActionSheet, type ActionSheetAction } from '@/components/ActionSheet';
 import { RecipeCard } from '@/components/RecipeCard';
+import { useToast } from '@/components/ToastProvider';
 
 export function Home() {
   const navigate = useAppStore((state) => state.navigate);
   const { hasResume, resume } = useCook();
+  const { showToast } = useToast();
+  const [newOpen, setNewOpen] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
   const recipeRows = useLiveQuery(() => listAllRecipes(), []);
   const sessionRows = useLiveQuery(() => listSessions(), []);
   const recipes = useMemo(() => recipeRows ?? [], [recipeRows]);
@@ -46,6 +51,44 @@ export function Home() {
       navigate({ name: 'cook' });
     }
   };
+
+  const handleCopyBuiltin = async (recipeId: string) => {
+    try {
+      const copy = await forkBuiltin(recipeId);
+      showToast({ message: '已复制为我的菜谱', tone: 'success' });
+      navigate({ name: 'edit', recipeId: copy.id });
+    } catch (copyError) {
+      console.error('[kaihuo] failed to copy a builtin recipe', copyError);
+      showToast({ message: '复制失败，请重试', tone: 'danger' });
+    }
+  };
+
+  const newActions: ActionSheetAction[] = [
+    {
+      label: '和 AI 说一道菜',
+      description: '口述做法，自动整理成步骤',
+      icon: <Sparkles size={18} />,
+      onSelect: () => navigate({ name: 'chat' }),
+    },
+    {
+      label: '手动填写',
+      description: '适合已经会做的菜',
+      icon: <PenLine size={18} />,
+      onSelect: () => navigate({ name: 'edit' }),
+    },
+    {
+      label: '从内置复制',
+      description: '复制一份再改',
+      icon: <Copy size={18} />,
+      onSelect: () => setCopyOpen(true),
+    },
+  ];
+
+  const copyActions: ActionSheetAction[] = builtins.map((recipe) => ({
+    label: recipe.title,
+    description: `${recipe.steps.length} 步 · ${recipe.servings} 人份`,
+    onSelect: () => void handleCopyBuiltin(recipe.id),
+  }));
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-8 px-5 pb-12 pt-10">
@@ -113,7 +156,17 @@ export function Home() {
       ) : null}
 
       <section>
-        <h2 className="mb-3 text-sm font-medium text-[var(--muted)]">我的菜谱</h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-medium text-[var(--muted)]">我的菜谱</h2>
+          <button
+            type="button"
+            onClick={() => setNewOpen(true)}
+            className="flex min-h-11 items-center gap-1 rounded-full bg-white/5 px-3 text-xs text-[var(--accent-2)]"
+          >
+            <Plus size={14} />
+            新建
+          </button>
+        </div>
         {mine.length > 0 ? (
           <div className="space-y-3">
             {mine.map((recipe) => (
@@ -147,6 +200,19 @@ export function Home() {
       <footer className="pt-2 text-center text-xs text-[var(--muted)]">
         数据存在这台设备 · 断网也能做菜
       </footer>
+
+      <ActionSheet
+        open={newOpen}
+        title="新建菜谱"
+        actions={newActions}
+        onClose={() => setNewOpen(false)}
+      />
+      <ActionSheet
+        open={copyOpen}
+        title="复制哪道内置菜？"
+        actions={copyActions}
+        onClose={() => setCopyOpen(false)}
+      />
     </main>
   );
 }

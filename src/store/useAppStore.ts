@@ -9,7 +9,7 @@ export type View =
   | { name: 'done' }
   | { name: 'studio' }
   | { name: 'chat' }
-  | { name: 'edit'; recipeId: string };
+  | { name: 'edit'; recipeId?: string };
 
 interface NavigateOptions {
   replace?: boolean;

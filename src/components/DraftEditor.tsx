@@ -112,8 +112,9 @@ export function DraftEditor({ spec, onChange, heading = '编辑草稿' }: DraftE
           <input
             aria-label="菜谱名"
             value={spec.title}
+            placeholder="比如：番茄炒蛋"
             onChange={(event) => update({ title: event.target.value })}
-            className="mt-1 w-full rounded-xl bg-white/5 px-3 py-2.5 text-base outline-none"
+            className="mt-1 w-full rounded-xl bg-white/5 px-3 py-2.5 text-base outline-none placeholder:text-[var(--muted)]"
           />
         </label>
 

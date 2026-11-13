@@ -4,12 +4,14 @@ import { builtinRecipes } from './builtin';
 import { db } from './db';
 import {
   deleteRecipe,
+  duplicateRecipe,
   exportData,
   forkBuiltin,
   getRecipe,
   importData,
   listAllRecipes,
   listSessions,
+  restoreRecipe,
   saveRecipe,
   saveSession,
 } from './repo';
@@ -84,6 +86,34 @@ describe('recipe repository', () => {
     expect(copy.title).toBe(firstBuiltin.title);
     expect(await getRecipe(firstBuiltin.id)).toBeDefined();
     expect(await db.recipes.get(copy.id)).toBeDefined();
+  });
+
+  it('restores a soft-deleted recipe', async () => {
+    await saveRecipe(userRecipe);
+    await deleteRecipe(userRecipe.id);
+
+    const restored = await restoreRecipe(userRecipe.id);
+
+    expect(restored?.id).toBe(userRecipe.id);
+    expect(restored?.deletedAt).toBeUndefined();
+    expect((await getRecipe(userRecipe.id))?.title).toBe(userRecipe.title);
+    expect(await db.recipes.get(userRecipe.id)).toMatchObject({ id: userRecipe.id });
+  });
+
+  it('returns undefined when restoring a missing recipe', async () => {
+    expect(await restoreRecipe('missing')).toBeUndefined();
+  });
+
+  it('duplicates a user recipe without touching the original', async () => {
+    await saveRecipe(userRecipe);
+
+    const copy = await duplicateRecipe(userRecipe.id);
+
+    expect(copy.id).not.toBe(userRecipe.id);
+    expect(copy.source).toBe('user');
+    expect(copy.title).toBe('我的番茄炒蛋 副本');
+    expect((await getRecipe(userRecipe.id))?.title).toBe(userRecipe.title);
+    expect(await getRecipe(copy.id)).toBeDefined();
   });
 });
 

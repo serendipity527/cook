@@ -7,11 +7,13 @@ import { useRequestBack } from '@/navigation/NavigationProvider';
 import { formatEstimatedMinutes, formatRange, formatSeconds } from '@/lib/format';
 import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
+import { useToast } from '@/components/ToastProvider';
 
 export function RecipeDetail({ recipeId }: { recipeId: string }) {
   const navigate = useAppStore((state) => state.navigate);
   const resetTo = useAppStore((state) => state.resetTo);
   const requestBack = useRequestBack();
+  const { showToast } = useToast();
   const recipe = useLiveQuery(async () => (await getRecipe(recipeId)) ?? null, [recipeId]);
   const [forking, setForking] = useState(false);
 
@@ -38,6 +40,7 @@ export function RecipeDetail({ recipeId }: { recipeId: string }) {
       if (recipe.source === 'builtin') {
         setForking(true);
         const copy = await forkBuiltin(recipe.id);
+        showToast({ message: '已复制为我的菜谱', tone: 'success' });
         navigate({ name: 'edit', recipeId: copy.id });
         return;
       }
@@ -45,7 +48,7 @@ export function RecipeDetail({ recipeId }: { recipeId: string }) {
       navigate({ name: 'edit', recipeId: recipe.id });
     } catch (error) {
       console.error('[kaihuo] failed to open the recipe editor', error);
-      window.alert('暂时无法编辑这道菜');
+      showToast({ message: '暂时无法编辑这道菜', tone: 'danger' });
     } finally {
       setForking(false);
     }

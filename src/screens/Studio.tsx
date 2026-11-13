@@ -9,17 +9,21 @@ import {
   importData,
   listUserRecipes,
   requestPersistence,
+  restoreRecipe,
 } from '@/data/repo';
 import { backupFilename, downloadJson } from '@/lib/download';
 import { useRequestBack } from '@/navigation/NavigationProvider';
 import { useInstallPrompt } from '@/pwa/useInstallPrompt';
 import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
+import { ConfirmSheet } from '@/components/ConfirmSheet';
+import { useToast } from '@/components/ToastProvider';
 
 const speechRates = [0.9, 1.0, 1.1];
 
 export function Studio() {
   const navigate = useAppStore((state) => state.navigate);
+  const resetTo = useAppStore((state) => state.resetTo);
   const requestBack = useRequestBack();
   const speechEnabled = useAppStore((state) => state.speechEnabled);
   const speechRate = useAppStore((state) => state.speechRate);
@@ -28,7 +32,8 @@ export function Studio() {
   const recipes = useLiveQuery(() => listUserRecipes(), []) ?? [];
   const fileInputRef = useRef<HTMLInputElement>(null);
   const install = useInstallPrompt();
-  const [message, setMessage] = useState<string | null>(null);
+  const { showToast } = useToast();
+  const [pendingDelete, setPendingDelete] = useState<Recipe | null>(null);
   const [estimate, setEstimate] = useState<{ usage: number; quota: number } | null>(null);
 
   useEffect(() => {
@@ -41,9 +46,12 @@ export function Studio() {
     try {
       const bundle = await exportData();
       downloadJson(backupFilename(), bundle);
-      setMessage(`已导出 ${bundle.recipes.length} 个菜谱、${bundle.sessions.length} 条做菜记录`);
+      showToast({
+        message: `已导出 ${bundle.recipes.length} 个菜谱、${bundle.sessions.length} 条做菜记录`,
+        tone: 'success',
+      });
     } catch {
-      setMessage('导出失败，请稍后重试');
+      showToast({ message: '导出失败，请稍后重试', tone: 'danger' });
     }
   };
 
@@ -57,41 +65,68 @@ export function Studio() {
 
     try {
       const report = await importData(await file.text());
-      setMessage(
-        `导入完成：新增 ${report.recipesAdded}、更新 ${report.recipesUpdated}、跳过 ${report.recipesSkipped} 个菜谱；新增 ${report.sessionsAdded} 条记录`,
-      );
+      showToast({
+        message: `导入完成：新增 ${report.recipesAdded}、更新 ${report.recipesUpdated}、跳过 ${report.recipesSkipped} 个菜谱；新增 ${report.sessionsAdded} 条记录`,
+        tone: 'success',
+        durationMs: 5000,
+      });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : '导入失败');
+      showToast({
+        message: error instanceof Error ? error.message : '导入失败',
+        tone: 'danger',
+        durationMs: 5000,
+      });
     }
   };
 
   const handlePersist = async () => {
     try {
       const granted = await requestPersistence();
-      setMessage(granted ? '已获得持久化存储，浏览器不会随意清理' : '浏览器没有授予持久化存储');
+      showToast({
+        message: granted ? '已获得持久化存储，浏览器不会随意清理' : '浏览器没有授予持久化存储',
+        tone: granted ? 'success' : 'default',
+      });
     } catch {
-      setMessage('申请持久化失败');
+      showToast({ message: '申请持久化失败', tone: 'danger' });
     }
   };
 
-  const handleDelete = async (recipe: Recipe) => {
-    if (!window.confirm(`删除「${recipe.title}」？这条菜谱会被移出列表。`)) {
+  const handleDelete = async () => {
+    const recipe = pendingDelete;
+
+    if (!recipe) {
       return;
     }
 
-    await deleteRecipe(recipe.id);
-    setMessage('已删除');
+    setPendingDelete(null);
+
+    try {
+      await deleteRecipe(recipe.id);
+      showToast({
+        message: `已删除「${recipe.title}」`,
+        action: {
+          label: '撤销',
+          onClick: () => {
+            void restoreRecipe(recipe.id)
+              .then(() => showToast({ message: '已恢复', tone: 'success' }))
+              .catch(() => showToast({ message: '恢复失败，请重试', tone: 'danger' }));
+          },
+        },
+      });
+    } catch {
+      showToast({ message: '删除失败，请重试', tone: 'danger' });
+    }
   };
 
   const handleInstall = async () => {
     const outcome = await install.promptInstall();
 
     if (outcome === 'accepted') {
-      setMessage('已开始安装，请按系统提示完成');
+      showToast({ message: '已开始安装，请按系统提示完成', tone: 'success' });
     } else if (outcome === 'dismissed') {
-      setMessage('已取消安装');
+      showToast({ message: '已取消安装' });
     } else {
-      setMessage('浏览器没有弹出安装入口，请从浏览器菜单选择“安装应用”');
+      showToast({ message: '浏览器没有弹出安装入口，请从浏览器菜单选择“安装应用”' });
     }
   };
 
@@ -125,12 +160,6 @@ export function Studio() {
         </span>
       </button>
 
-      {message ? (
-        <p className="mt-4 rounded-2xl bg-[var(--surface)] p-4 text-sm leading-relaxed text-[var(--muted)]">
-          {message}
-        </p>
-      ) : null}
-
       <section className="mt-8">
         <h2 className="mb-3 text-sm font-medium text-[var(--muted)]">我的菜谱</h2>
         {recipes.length > 0 ? (
@@ -158,7 +187,7 @@ export function Studio() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => void handleDelete(recipe)}
+                  onClick={() => setPendingDelete(recipe)}
                   className="flex h-11 w-11 items-center justify-center rounded-xl text-[var(--muted)]"
                   aria-label={`删除 ${recipe.title}`}
                 >
@@ -296,10 +325,21 @@ export function Studio() {
       </section>
 
       <section className="mt-8">
-        <BigButton variant="secondary" onClick={() => navigate({ name: 'home' })}>
+        <BigButton variant="secondary" onClick={() => resetTo([{ name: 'home' }])}>
           回首页
         </BigButton>
       </section>
+
+      <ConfirmSheet
+        open={Boolean(pendingDelete)}
+        title={pendingDelete ? `删除「${pendingDelete.title}」？` : '删除这道菜？'}
+        description="菜谱会从列表移除，做菜记录不受影响。"
+        cancelLabel="取消"
+        confirmLabel="删除"
+        tone="danger"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => void handleDelete()}
+      />
     </main>
   );
 }

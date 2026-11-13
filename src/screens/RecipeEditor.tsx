@@ -10,27 +10,43 @@ import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
 import { ConfirmSheet } from '@/components/ConfirmSheet';
 import { DraftEditor } from '@/components/DraftEditor';
+import { useToast } from '@/components/ToastProvider';
 
-export function RecipeEditor({ recipeId }: { recipeId: string }) {
+function createBlankSpec(): DraftSpec {
+  return {
+    title: '',
+    servings: 2,
+    prep: [],
+    steps: [{ text: '', kind: 'judgment', suggestRange: [30, 60] }],
+    questions: [],
+  };
+}
+
+export function RecipeEditor({ recipeId }: { recipeId?: string }) {
+  const isNew = !recipeId;
   const resetTo = useAppStore((store) => store.resetTo);
   const back = useAppStore((store) => store.back);
   const requestBack = useRequestBack();
-  const recipe = useLiveQuery(async () => (await getRecipe(recipeId)) ?? null, [recipeId]);
-  const [spec, setSpec] = useState<DraftSpec | null>(null);
+  const { showToast } = useToast();
+  const recipe = useLiveQuery(
+    async () => (recipeId ? ((await getRecipe(recipeId)) ?? null) : null),
+    [recipeId],
+  );
+  const [spec, setSpec] = useState<DraftSpec | null>(() => (isNew ? createBlankSpec() : null));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
-  const baselineRef = useRef<string | null>(null);
+  const baselineRef = useRef<string | null>(isNew ? JSON.stringify(createBlankSpec()) : null);
   const seededIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (recipe && seededIdRef.current !== recipe.id) {
+    if (!isNew && recipe && seededIdRef.current !== recipe.id) {
       const next = recipeToDraft(recipe);
       seededIdRef.current = recipe.id;
       baselineRef.current = JSON.stringify(next);
       setSpec(next);
     }
-  }, [recipe]);
+  }, [isNew, recipe]);
 
   const dirty = Boolean(spec && baselineRef.current && JSON.stringify(spec) !== baselineRef.current);
 
@@ -56,36 +72,40 @@ export function RecipeEditor({ recipeId }: { recipeId: string }) {
     }
   };
 
-  if (recipe === undefined || (recipe !== null && !spec)) {
-    return <Centered>加载中…</Centered>;
-  }
+  if (!isNew) {
+    if (recipe === undefined) {
+      return <Centered>加载中…</Centered>;
+    }
 
-  if (recipe === null) {
-    return (
-      <Centered>
-        <p className="text-lg font-semibold">菜谱找不到了</p>
-        <BigButton className="mt-6" onClick={() => resetTo([{ name: 'home' }])}>
-          回首页
-        </BigButton>
-      </Centered>
-    );
-  }
+    if (recipe === null) {
+      return (
+        <Centered>
+          <p className="text-lg font-semibold">菜谱找不到了</p>
+          <BigButton className="mt-6" onClick={() => resetTo([{ name: 'home' }])}>
+            回首页
+          </BigButton>
+        </Centered>
+      );
+    }
 
-  if (recipe.source === 'builtin') {
-    return (
-      <Centered>
-        <p className="text-lg font-semibold">内置菜谱不能直接编辑</p>
-        <p className="mt-2 text-sm text-[var(--muted)]">请从菜谱详情页复制一份再编辑。</p>
-        <BigButton className="mt-6" onClick={requestBack}>
-          返回菜谱
-        </BigButton>
-      </Centered>
-    );
+    if (recipe.source === 'builtin') {
+      return (
+        <Centered>
+          <p className="text-lg font-semibold">内置菜谱不能直接编辑</p>
+          <p className="mt-2 text-sm text-[var(--muted)]">请从菜谱详情页复制一份再编辑。</p>
+          <BigButton className="mt-6" onClick={requestBack}>
+            返回菜谱
+          </BigButton>
+        </Centered>
+      );
+    }
   }
 
   if (!spec) {
     return <Centered>加载中…</Centered>;
   }
+
+  const baseRecipe = !isNew && recipe ? recipe : undefined;
 
   const handleSave = async () => {
     const parsed = DraftSpecSchema.safeParse(spec);
@@ -99,9 +119,14 @@ export function RecipeEditor({ recipeId }: { recipeId: string }) {
     setError(null);
 
     try {
-      const updated = normalizeDraft(parsed.data, recipe);
-      await saveRecipe(updated);
-      resetTo([{ name: 'home' }, { name: 'detail', recipeId: updated.id }]);
+      const updated = normalizeDraft(parsed.data, baseRecipe);
+      const saved = isNew ? { ...updated, source: 'user' as const } : updated;
+      await saveRecipe(saved);
+      showToast({
+        message: isNew ? '菜谱已创建' : '修改已保存',
+        tone: 'success',
+      });
+      resetTo([{ name: 'home' }, { name: 'detail', recipeId: saved.id }]);
     } catch (saveFailure) {
       setError(saveFailure instanceof Error ? saveFailure.message : '保存失败，请重试');
     } finally {
@@ -115,15 +140,19 @@ export function RecipeEditor({ recipeId }: { recipeId: string }) {
         type="button"
         onClick={requestBack}
         className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--surface)]"
-        aria-label="返回菜谱"
+        aria-label={isNew ? '返回' : '返回菜谱'}
       >
         <ArrowLeft size={20} />
       </button>
 
       <header className="mt-5">
         <p className="text-xs tracking-[0.25em] text-[var(--accent)]">EDIT</p>
-        <h1 className="mt-1 text-3xl font-bold tracking-tight">编辑菜谱</h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">{recipe.title}</p>
+        <h1 className="mt-1 text-3xl font-bold tracking-tight">
+          {isNew ? '新建菜谱' : '编辑菜谱'}
+        </h1>
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          {isNew ? '手动填写，保存后就能开火' : (baseRecipe?.title ?? '')}
+        </p>
       </header>
 
       {error ? (
@@ -132,12 +161,12 @@ export function RecipeEditor({ recipeId }: { recipeId: string }) {
         </p>
       ) : null}
 
-      <DraftEditor spec={spec} onChange={setSpec} heading="修改内容" />
+      <DraftEditor spec={spec} onChange={setSpec} heading={isNew ? '菜谱内容' : '修改内容'} />
 
       <div className="fixed inset-x-0 bottom-0 bg-gradient-to-t from-[var(--bg)] via-[var(--bg)] to-transparent">
         <div className="mx-auto w-full max-w-md px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-6">
           <BigButton onClick={() => void handleSave()} disabled={saving}>
-            {saving ? '保存中…' : '保存修改'}
+            {saving ? '保存中…' : isNew ? '保存菜谱' : '保存修改'}
           </BigButton>
         </div>
       </div>
