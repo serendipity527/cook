@@ -33,6 +33,7 @@ export function Home() {
   const mine = recipes.filter((recipe) => recipe.source !== 'builtin');
   const builtins = recipes.filter((recipe) => recipe.source === 'builtin');
   const showGuide = mine.length === 0 && query.trim() === '';
+  const queryKey = query.trim().toLowerCase();
 
   useEffect(() => {
     if (!resumeInfo) {
@@ -201,7 +202,7 @@ export function Home() {
         </div>
       ) : null}
 
-      <div className="relative">
+      <div className="relative flex items-center">
         <Search
           size={18}
           className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-[var(--muted)]"
@@ -212,40 +213,46 @@ export function Home() {
           onChange={(event) => setQuery(event.target.value)}
           aria-label="搜索菜谱"
           placeholder="搜索菜谱…"
-          className="min-h-12 w-full rounded-2xl bg-[var(--surface)] pr-4 pl-11 text-base outline-none placeholder:text-[var(--muted)]"
+          className="min-h-12 w-full rounded-2xl bg-[var(--surface)] pr-14 pl-11 text-base outline-none placeholder:text-[var(--muted)]"
         />
+        <button
+          type="button"
+          onClick={() => setNewOpen(true)}
+          aria-label="新建菜谱"
+          className="absolute top-0 right-0 flex h-12 w-12 items-center justify-center rounded-2xl text-[var(--muted)]"
+        >
+          <Plus size={20} />
+        </button>
       </div>
 
       {visibleLibrary.length > 0 ? (
         <div className="space-y-1.5">
-          {visibleLibrary.map((entry) => (
-            <RecipeRow
-              key={entry.recipe.id}
-              recipe={entry.recipe}
-              lastCookedAt={entry.lastCookedAt}
-              onOpen={() => navigate({ name: 'detail', recipeId: entry.recipe.id })}
-              onFire={
-                entry.lastCookedAt
-                  ? () => navigate({ name: 'prep', recipeId: entry.recipe.id })
-                  : undefined
-              }
-            />
-          ))}
+          {visibleLibrary.map((entry) => {
+            const matchedTags = queryKey
+              ? entry.recipe.tags.filter((tag) => tag.toLowerCase().includes(queryKey))
+              : [];
+
+            return (
+              <RecipeRow
+                key={entry.recipe.id}
+                recipe={entry.recipe}
+                lastCookedAt={entry.lastCookedAt}
+                matchedTags={matchedTags}
+                onOpen={() => navigate({ name: 'detail', recipeId: entry.recipe.id })}
+                onFire={
+                  entry.lastCookedAt
+                    ? () => navigate({ name: 'prep', recipeId: entry.recipe.id })
+                    : undefined
+                }
+              />
+            );
+          })}
         </div>
       ) : (
         <div className="rounded-3xl border border-dashed border-white/10 p-5 text-sm leading-relaxed text-[var(--muted)]">
           没有匹配的菜谱。
         </div>
       )}
-
-      <button
-        type="button"
-        onClick={() => setNewOpen(true)}
-        className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-white/15 text-sm text-[var(--muted)]"
-      >
-        <Plus size={16} />
-        新建一道菜
-      </button>
 
       <ActionSheet
         open={newOpen}
