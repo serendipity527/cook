@@ -115,6 +115,33 @@ describe('recipe repository', () => {
     expect((await getRecipe(userRecipe.id))?.title).toBe(userRecipe.title);
     expect(await getRecipe(copy.id)).toBeDefined();
   });
+
+  it('rejects a duplicate title among live user recipes', async () => {
+    await saveRecipe(userRecipe);
+
+    await expect(
+      saveRecipe({ ...userRecipe, id: 'r_user_2', updatedAt: 20 }),
+    ).rejects.toThrow('已有同名菜谱');
+    expect(await db.recipes.get('r_user_2')).toBeUndefined();
+  });
+
+  it('allows re-saving the same recipe by id', async () => {
+    await saveRecipe(userRecipe);
+
+    const saved = await saveRecipe({ ...userRecipe, updatedAt: 20 });
+
+    expect(saved.updatedAt).toBe(20);
+    expect(await db.recipes.get(userRecipe.id)).toBeDefined();
+  });
+
+  it('allows the title again once the other copy is soft-deleted', async () => {
+    await saveRecipe(userRecipe);
+    await deleteRecipe(userRecipe.id);
+
+    const other = await saveRecipe({ ...userRecipe, id: 'r_user_2', updatedAt: 20 });
+
+    expect(other.id).toBe('r_user_2');
+  });
 });
 
 describe('session repository', () => {

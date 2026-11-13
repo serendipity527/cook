@@ -51,6 +51,19 @@ export async function saveRecipe(input: Recipe): Promise<Recipe> {
     throw new Error('内置菜谱不能写入个人菜谱库');
   }
 
+  const title = recipe.title.trim();
+  const existing = await db.recipes.toArray();
+  const clash = existing.find(
+    (item) =>
+      item.id !== recipe.id &&
+      item.deletedAt === undefined &&
+      item.title.trim() === title,
+  );
+
+  if (clash) {
+    throw new Error(`已有同名菜谱「${clash.title}」，换个名字或先删除它`);
+  }
+
   await db.recipes.put(recipe);
   return recipe;
 }
