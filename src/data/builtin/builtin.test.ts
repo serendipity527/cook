@@ -23,4 +23,21 @@ describe('builtin recipes', () => {
       expect(recipe.steps.length).toBeGreaterThan(0);
     }
   });
+
+  it('ships a photo for every cola wings prep item and step', () => {
+    const colaWings = builtinRecipes.find((recipe) => recipe.id === 'r_cola_wings');
+
+    expect(colaWings).toBeDefined();
+    expect(colaWings?.prep.every((item) => item.photoSrc)).toBe(true);
+    expect(colaWings?.steps.every((step) => step.photoSrc)).toBe(true);
+  });
+
+  it('keeps step titles short and puts the detail in the body', () => {
+    for (const recipe of builtinRecipes) {
+      for (const step of recipe.steps) {
+        expect(step.detail, `${recipe.title} ${step.id} detail`).toBeTruthy();
+        expect(step.text.length, `${recipe.title} ${step.id} title`).toBeLessThanOrEqual(12);
+      }
+    }
+  });
 });

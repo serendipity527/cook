@@ -8,60 +8,91 @@
   "source": "builtin",
   "estimatedMinutes": 40,
   "prep": [
-    { "id": "p1", "text": "鸡翅中 8 个，两面各划两刀" },
-    { "id": "p2", "text": "姜 3 片，小葱 1 根切段" },
-    { "id": "p3", "text": "可乐 330ml、生抽 15ml、料酒 10ml 备好" }
+    {
+      "id": "p1",
+      "text": "鸡翅中 8 个（约 500g），两面各划两刀",
+      "tip": "划两刀更容易入味，也熟得更匀",
+      "photoSrc": "/recipes/cola-wings/prepare-wings.jpg"
+    },
+    {
+      "id": "p2",
+      "text": "姜 3 片，小葱 1 根切段",
+      "tip": "姜片拍一下再下锅，香味更足",
+      "photoSrc": "/recipes/cola-wings/ginger.jpg"
+    },
+    {
+      "id": "p3",
+      "text": "可乐 330ml、生抽 15ml、料酒 10ml 备好",
+      "tip": "用含糖可乐，收出来的汁才亮",
+      "photoSrc": "/recipes/cola-wings/cola-soy.jpg"
+    }
   ],
   "steps": [
     {
       "id": "s1",
-      "text": "鸡翅冷水下锅，加姜片和料酒，水开后煮 2 分钟",
-      "speak": "鸡翅冷水下锅，焯两分钟",
+      "text": "冷水下锅焯水",
+      "detail": "鸡翅冷水下锅，加姜片和料酒，水开后煮 2 分钟，捞出用温水洗净沥干。",
+      "speak": "鸡翅冷水下锅，煮两分钟后捞出",
       "kind": "timed",
-      "durationSec": 180
+      "durationSec": 180,
+      "heat": "medium",
+      "tip": "撇掉浮沫再捞，腥味更少",
+      "photoSrc": "/recipes/cola-wings/blanch.jpg"
     },
     {
       "id": "s2",
-      "text": "捞出鸡翅，洗净沥干",
-      "speak": "捞出鸡翅，洗净沥干",
-      "kind": "judgment"
+      "text": "煎至两面金黄",
+      "detail": "锅里放少许油，鸡翅擦干后下锅，中小火煎到两面金黄、表皮微焦。",
+      "speak": "鸡翅煎至两面金黄",
+      "kind": "timed",
+      "durationSec": 300,
+      "heat": "medium",
+      "tip": "鸡皮擦干再下锅，不容易粘",
+      "photoSrc": "/recipes/cola-wings/pan-fry.jpg"
     },
     {
       "id": "s3",
-      "text": "锅中少油，鸡翅煎至两面金黄",
-      "speak": "鸡翅煎至两面金黄",
+      "text": "倒入可乐调味",
+      "detail": "倒入可乐、生抽和姜片，液面没过鸡翅一半即可，大火烧开。",
+      "speak": "倒入可乐和生抽，烧开",
       "kind": "timed",
-      "durationSec": 300
+      "durationSec": 120,
+      "heat": "high",
+      "tip": "不用完全淹没，收汁更快",
+      "photoSrc": "/recipes/cola-wings/pour-cola.jpg"
     },
     {
       "id": "s4",
-      "text": "倒入可乐、生抽和姜片，大火烧开",
-      "speak": "倒入可乐和生抽，烧开",
-      "kind": "timed",
-      "durationSec": 120
-    },
-    {
-      "id": "s5",
-      "text": "转小火，加盖焖 15 分钟",
+      "text": "小火加盖焖",
+      "detail": "转小火，加盖焖 15 分钟，中途翻一次面，让两面都入味。",
       "speak": "转小火，焖十五分钟",
       "kind": "timed",
       "durationSec": 900,
-      "heat": "low"
+      "heat": "low",
+      "tip": "保持微微冒泡，别烧干",
+      "photoSrc": "/recipes/cola-wings/braise.jpg"
     },
     {
-      "id": "s6",
-      "text": "开盖转大火收汁，不断翻动裹匀",
+      "id": "s5",
+      "text": "大火收汁",
+      "detail": "开盖转大火，不断翻动鸡翅，让汤汁慢慢变稠、均匀裹在表面。",
       "speak": "大火收汁，翻动裹匀",
       "kind": "timed",
       "durationSec": 180,
-      "heat": "high"
+      "heat": "high",
+      "tip": "糖分容易糊，收汁时别走开",
+      "photoSrc": "/recipes/cola-wings/reduce.jpg"
     },
     {
-      "id": "s7",
-      "text": "汤汁浓稠，关火装盘",
+      "id": "s6",
+      "text": "关火装盘",
+      "detail": "汤汁浓稠到能挂住鸡翅时关火，装盘后撒白芝麻和葱花。",
       "speak": "汤汁浓稠，关火装盘",
-      "kind": "judgment",
-      "suggestRange": [10, 30]
+      "kind": "timed",
+      "durationSec": 60,
+      "heat": "low",
+      "tip": "趁热吃，凉了汤汁会凝",
+      "photoSrc": "/recipes/cola-wings/plate.jpg"
     }
   ],
   "createdAt": 0,

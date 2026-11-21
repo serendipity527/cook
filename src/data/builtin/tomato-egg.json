@@ -16,53 +16,56 @@
   "steps": [
     {
       "id": "s1",
-      "text": "锅中倒油，中火烧热",
+      "text": "中火热油",
+      "detail": "锅中倒油，中火烧到油面微微晃动、有细纹。",
       "speak": "中火热油",
       "kind": "timed",
       "durationSec": 45,
-      "heat": "medium"
+      "heat": "medium",
+      "tip": "油别太少，蛋才蓬松"
     },
     {
       "id": "s2",
-      "text": "倒入蛋液，边缘凝固后快速划散",
+      "text": "倒入蛋液划散",
+      "detail": "倒入蛋液，用铲子快速划散，让蛋液均匀受热。",
       "speak": "倒入蛋液，快速划散",
       "kind": "timed",
       "durationSec": 40,
-      "heat": "medium"
+      "heat": "medium",
+      "tip": "边缘凝固后再划散，别炒太老"
     },
     {
       "id": "s3",
-      "text": "鸡蛋八成熟，盛出备用",
+      "text": "八成熟盛出",
+      "detail": "鸡蛋刚凝固、表面还带一点湿润时盛出备用，避免炒老。",
       "speak": "鸡蛋八成熟，盛出",
       "kind": "judgment",
       "suggestRange": [10, 20]
     },
     {
       "id": "s4",
-      "text": "补一点油，下番茄中火翻炒出汁",
+      "text": "下番茄炒出汁",
+      "detail": "补一点油，下番茄中火翻炒，炒到番茄变软、开始出红色汤汁。",
       "speak": "下番茄，炒出汁",
       "kind": "timed",
-      "durationSec": 90
+      "durationSec": 90,
+      "heat": "medium"
     },
     {
       "id": "s5",
-      "text": "倒入调料汁，翻匀",
+      "text": "倒入调料汁",
+      "detail": "倒入调好的料汁，翻匀让番茄吸收味道，汤汁微微收浓。",
       "speak": "倒入料汁，翻匀",
       "kind": "timed",
       "durationSec": 30
     },
     {
       "id": "s6",
-      "text": "倒回鸡蛋，快速翻匀，撒葱花",
+      "text": "倒回鸡蛋出锅",
+      "detail": "倒回鸡蛋，快速翻匀，撒葱花后关火装盘。",
       "speak": "倒回鸡蛋，翻匀出锅",
       "kind": "timed",
-      "durationSec": 25
-    },
-    {
-      "id": "s7",
-      "text": "关火装盘",
-      "speak": "关火装盘",
-      "kind": "judgment"
+      "durationSec": 30
     }
   ],
   "createdAt": 0,

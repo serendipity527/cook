@@ -15,29 +15,35 @@
   "steps": [
     {
       "id": "s1",
-      "text": "烧一锅水，水开后加少许盐和油",
+      "text": "烧水加盐油",
+      "detail": "烧一锅水，水开后加少许盐和油，能让西兰花保持翠绿。",
       "speak": "烧水，加盐和油",
       "kind": "judgment",
       "suggestRange": [120, 300]
     },
     {
       "id": "s2",
-      "text": "下西兰花焯 60 秒，捞出沥干",
+      "text": "西兰花焯水",
+      "detail": "下西兰花焯 60 秒，颜色变深绿就捞出，沥干水分。",
       "speak": "下西兰花，焯一分钟",
       "kind": "timed",
-      "durationSec": 60
+      "durationSec": 60,
+      "tip": "别焯太久，软了就不好吃"
     },
     {
       "id": "s3",
-      "text": "热锅倒油，小火炒香蒜末",
+      "text": "小火炒香蒜末",
+      "detail": "热锅倒油，转小火下蒜末慢慢炒香，炒到微微发黄。",
       "speak": "热油，炒香蒜末",
       "kind": "timed",
       "durationSec": 25,
-      "heat": "low"
+      "heat": "low",
+      "tip": "火大会把蒜末炒苦"
     },
     {
       "id": "s4",
-      "text": "下西兰花和调料汁，大火翻炒均匀",
+      "text": "下西兰花翻炒",
+      "detail": "下西兰花和调料汁，转大火快速翻炒，让每朵都裹上蒜香。",
       "speak": "下西兰花和料汁，大火翻炒",
       "kind": "timed",
       "durationSec": 60,
@@ -45,7 +51,8 @@
     },
     {
       "id": "s5",
-      "text": "汤汁收浓，关火装盘",
+      "text": "收汁装盘",
+      "detail": "汤汁收浓、均匀挂在西兰花上时关火，装盘即可。",
       "speak": "收汁，装盘",
       "kind": "judgment",
       "suggestRange": [10, 20]
