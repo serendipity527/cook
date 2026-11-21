@@ -60,6 +60,14 @@ describe('normalizeDraft', () => {
     expect(recipe.tags).toEqual(['家常']);
   });
 
+  it('takes tags from the draft when provided, falling back to the base', () => {
+    const edited = normalizeDraft({ ...spec, tags: ['快手菜', '下饭'] }, base, 500);
+    expect(edited.tags).toEqual(['快手菜', '下饭']);
+
+    const cleared = normalizeDraft({ ...spec, tags: [] }, base, 500);
+    expect(cleared.tags).toEqual([]);
+  });
+
   it('regenerates step ids when the step count changes', () => {
     const recipe = normalizeDraft(
       { ...spec, steps: [...spec.steps, { text: '装盘', kind: 'judgment' }] },

@@ -2,10 +2,15 @@ import { z } from 'zod';
 
 export const PREP_ITEM_MAX = 20;
 export const STEP_MAX = 40;
+/** 单步最长 30 天，最短 3 秒。 */
+export const STEP_DURATION_MIN_SEC = 3;
+export const STEP_DURATION_MAX_SEC = 30 * 24 * 60 * 60;
 
 export const PrepInputSchema = z.object({
   text: z.string().min(1).max(80),
   tip: z.string().max(120).optional(),
+  photoAssetId: z.string().min(1).optional(),
+  photoSrc: z.string().min(1).max(300).optional(),
 });
 
 export const PrepItemSchema = PrepInputSchema.extend({
@@ -14,14 +19,17 @@ export const PrepItemSchema = PrepInputSchema.extend({
 
 const stepFields = {
   text: z.string().min(1).max(200),
+  detail: z.string().max(200).optional(),
   speak: z.string().max(60).optional(),
   kind: z.enum(['timed', 'judgment']),
-  durationSec: z.number().int().min(3).max(3600).optional(),
+  durationSec: z.number().int().min(STEP_DURATION_MIN_SEC).max(STEP_DURATION_MAX_SEC).optional(),
   suggestRange: z.tuple([z.number().int().positive(), z.number().int().positive()]).optional(),
   heat: z.enum(['low', 'medium', 'high']).optional(),
   tip: z.string().max(160).optional(),
   ingredients: z.array(z.string().max(40)).optional(),
   assetId: z.string().min(1).optional(),
+  photoAssetId: z.string().min(1).optional(),
+  photoSrc: z.string().min(1).max(300).optional(),
 };
 
 type StepShape = {

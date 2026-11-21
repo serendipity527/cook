@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { AssistantRequest } from '@shared/schema';
-import { ASSISTANT_SYSTEM_PROMPT, ASSISTANT_TEXT_CONTRACT, buildAssistantPrompt } from './assistant';
+import {
+  ASSISTANT_SYSTEM_PROMPT,
+  ASSISTANT_TEXT_CONTRACT,
+  buildAssistantPrompt,
+} from './assistant';
 
 const request: AssistantRequest = {
   message: '我有哪些菜谱？',
@@ -29,6 +33,7 @@ describe('assistant prompt', () => {
 
   it('defines the assistant JSON contract', () => {
     expect(ASSISTANT_TEXT_CONTRACT).toContain('"intent"');
+    expect(ASSISTANT_TEXT_CONTRACT).toContain('"tags"');
     expect(ASSISTANT_TEXT_CONTRACT).toContain('create_recipe / update_recipe 必须提供 draft');
   });
 

@@ -10,7 +10,7 @@ export function normalizeDraft(spec: DraftSpec, base?: Recipe, now = Date.now())
     title: spec.title,
     subtitle: base?.subtitle,
     servings: spec.servings,
-    tags: base?.tags ?? [],
+    tags: spec.tags ?? base?.tags ?? [],
     coverAssetId: base?.coverAssetId,
     prep: spec.prep.map((item, index) => ({
       id: base?.prep[index]?.id ?? newId('p'),

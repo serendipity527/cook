@@ -34,6 +34,57 @@ describe('StepSchema', () => {
     expect(result.success).toBe(false);
   });
 
+  it('accepts durations measured in hours and days', () => {
+    const hour = StepSchema.parse({
+      id: 's1',
+      text: '腌一小时',
+      kind: 'timed',
+      durationSec: 60 * 60,
+    });
+    expect(hour.durationSec).toBe(3600);
+
+    const day = StepSchema.parse({
+      id: 's2',
+      text: '腌一天',
+      kind: 'timed',
+      durationSec: 24 * 60 * 60,
+    });
+    expect(day.durationSec).toBe(86400);
+  });
+
+  it('accepts a photo asset on a step', () => {
+    const step = StepSchema.parse({
+      id: 's1',
+      text: '倒油',
+      kind: 'timed',
+      durationSec: 30,
+      photoAssetId: 'a_1',
+    });
+    expect(step.photoAssetId).toBe('a_1');
+  });
+
+  it('accepts a static photo path on a step', () => {
+    const step = StepSchema.parse({
+      id: 's1',
+      text: '倒油',
+      kind: 'timed',
+      durationSec: 30,
+      photoSrc: '/recipes/demo/step.jpg',
+    });
+    expect(step.photoSrc).toBe('/recipes/demo/step.jpg');
+  });
+
+  it('accepts a longer detail alongside a short title', () => {
+    const step = StepSchema.parse({
+      id: 's1',
+      text: '中火热油',
+      detail: '锅中倒油，中火烧到油面微微晃动。',
+      kind: 'timed',
+      durationSec: 30,
+    });
+    expect(step.detail).toContain('中火');
+  });
+
   it('rejects a judgment step carrying a duration', () => {
     const result = StepSchema.safeParse({
       id: 's1',

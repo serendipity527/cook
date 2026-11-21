@@ -10,6 +10,7 @@ export const DraftSpecSchema = z.object({
   title: z.string().min(1).max(40),
   servings: z.number().int().min(1).max(20),
   estimatedMinutes: z.number().int().positive().optional(),
+  tags: z.array(z.string().min(1).max(12)).max(10).optional(),
   prep: z.array(PrepInputSchema).max(PREP_ITEM_MAX),
   steps: z.array(StepInputSchema).min(1).max(STEP_MAX),
   questions: z.array(z.string().min(1).max(120)).max(3),

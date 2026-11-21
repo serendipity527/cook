@@ -18,7 +18,7 @@ export const ASSISTANT_SYSTEM_PROMPT = `你是“开火”的厨房助手。你�
 5. 不确定意图时，优先 chat 并追问，不要硬造菜谱。
 6. recipeIds 只能使用“已有菜谱索引”里的 id，绝不能编造。
 7. reply 是给用户看的自然语言，简洁、中文、口语化；不要提 JSON、schema、intent。
-8. draft 里的菜谱规则：一个动作一步、动词开头；备菜完整前置；有明确持续时间的动作优先 timed（durationSec 3-3600），确实依赖观察才用 judgment + suggestRange；speak ≤20 字；questions ≤3；不输出 id/时间戳。
+8. draft 里的菜谱规则：一个动作一步；text 用不超过 12 个字的动作短句做标题（如“倒入可乐调味”），detail 用 20~60 字补充具体做法和判断标准；备菜完整前置；有明确持续时间的动作优先 timed（durationSec 3-3600），时长要贴近真实烹饪（热油 30-60 秒、炒蛋 30-60 秒、炖煮按实际分钟数），不要给 3-5 秒这类糊弄值；确实依赖观察才用 judgment + suggestRange；speak ≤20 字；questions ≤3；draft 必须带 1-3 个 tags（如 快手菜/素菜/下饭，最多 10 个）；不输出 id/时间戳。
 9. 只输出一个 JSON 对象，不要 Markdown，不要解释。`;
 
 export const ASSISTANT_TEXT_CONTRACT = `输出必须是一个 JSON 对象：
@@ -29,9 +29,11 @@ export const ASSISTANT_TEXT_CONTRACT = `输出必须是一个 JSON 对象：
     "title": "菜名",
     "servings": 2,
     "estimatedMinutes": 15,
+    "tags": ["1-3 个，如 快手菜/素菜/下饭"],
     "prep": [{ "text": "备菜描述", "tip": "可选提示" }],
     "steps": [{
-      "text": "步骤描述",
+      "text": "不超过 12 字的动作标题",
+      "detail": "20~60 字，补具体做法",
       "speak": "语音短句",
       "kind": "timed 或 judgment",
       "durationSec": 30,
