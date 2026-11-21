@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { isTimedStep } from '@shared/schema';
-import { Volume2, VolumeX } from 'lucide-react';
+import { BookOpen, Volume2, VolumeX } from 'lucide-react';
 import { useBackGuard } from '@/navigation/NavigationProvider';
 import { formatRange, formatSeconds } from '@/lib/format';
 import { audio } from '@/runtime/audio';
@@ -9,6 +9,8 @@ import { remainingMs, stepElapsedMs, type CookState } from '@/runtime/machine';
 import { formatClock, useNow } from '@/runtime/useCountdown';
 import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
+import { AssetImage } from '@/components/AssetImage';
+import { BottomSheet } from '@/components/BottomSheet';
 import { ConfirmSheet } from '@/components/ConfirmSheet';
 import { CountdownRing } from '@/components/CountdownRing';
 import { StepProgress } from '@/components/StepProgress';
@@ -29,6 +31,8 @@ export function Cook() {
   const { showToast } = useToast();
   const [abortOpen, setAbortOpen] = useState(false);
   const [prevOpen, setPrevOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [guideTab, setGuideTab] = useState<'prep' | 'steps'>('prep');
   const skipUndoRef = useRef<{ saved: CookState; remainingMs: number } | null>(null);
   const lastAdvanceRef = useRef(0);
   const stateRef = useRef<CookState | null>(state);
@@ -52,6 +56,11 @@ export function Cook() {
   }, [state, now, dispatch]);
 
   useBackGuard(() => {
+    if (guideOpen) {
+      setGuideOpen(false);
+      return true;
+    }
+
     if (prevOpen) {
       setPrevOpen(false);
       return true;
@@ -109,6 +118,8 @@ export function Cook() {
   const elapsed = timed ? 0 : stepElapsedMs(state, now);
   const next = state.recipe.steps[state.stepIndex + 1];
   const heat = step.heat ? heatLabels[step.heat] : null;
+  const body = step.detail ?? step.tip;
+  const hint = step.detail ? step.tip : undefined;
   const isLastStep = state.stepIndex === state.recipe.steps.length - 1;
 
   const canAdvance = () => {
@@ -232,8 +243,23 @@ export function Cook() {
   };
 
   const handleRelisten = () => {
+    if (!audio.isSpeechSupported()) {
+      showToast({ message: '当前浏览器不支持语音播报', tone: 'danger' });
+      return;
+    }
+
     if (!speechEnabled) {
-      showToast({ message: '语音已关闭' });
+      showToast({
+        message: '语音已关闭',
+        action: {
+          label: '开启语音',
+          onClick: () => {
+            setSpeechEnabled(true);
+            void audio.unlock();
+            audio.speak(step.speak ?? step.text, { enabled: true, rate: speechRate });
+          },
+        },
+      });
       return;
     }
 
@@ -269,17 +295,26 @@ export function Cook() {
           <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
+              onClick={() => setGuideOpen(true)}
+              aria-label="查看菜谱和备菜"
+              className="flex h-11 items-center gap-1.5 rounded-full bg-[var(--tint)] px-3 text-xs text-[var(--muted)]"
+            >
+              <BookOpen size={17} />
+              菜谱
+            </button>
+            <button
+              type="button"
               onClick={toggleSpeech}
               aria-label={speechEnabled ? '关闭语音播报' : '开启语音播报'}
               aria-pressed={speechEnabled}
-              className="flex h-11 w-11 items-center justify-center rounded-full bg-white/5 text-[var(--muted)]"
+              className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--tint)] text-[var(--muted)]"
             >
               {speechEnabled ? <Volume2 size={19} /> : <VolumeX size={19} />}
             </button>
             <button
               type="button"
               onClick={() => setAbortOpen(true)}
-              className="min-h-11 rounded-full bg-white/5 px-3 text-xs text-[var(--muted)]"
+              className="min-h-11 rounded-full bg-[var(--tint)] px-3 text-xs text-[var(--muted)]"
             >
               结束
             </button>
@@ -299,33 +334,44 @@ export function Cook() {
 
       <section className="min-h-0 flex-1 overflow-y-auto">
         <div className="flex min-h-full flex-col justify-center gap-4 py-4">
-          <div aria-live="polite" aria-atomic="true">
-            <div className="flex flex-wrap items-center gap-2">
-              {timed ? (
-                <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs text-[var(--accent-2)]">
-                  定时 {formatSeconds(step.durationSec)}
-                </span>
-              ) : (
-                <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)]">
-                  {step.suggestRange ? `建议 ${formatRange(step.suggestRange)}` : '看状态'}
-                </span>
-              )}
-              {heat ? (
-                <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)]">
-                  {heat}
-                </span>
+          <div aria-live="polite" aria-atomic="true" className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                {timed ? (
+                  <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs text-[var(--accent-2)]">
+                    本步 {formatSeconds(step.durationSec)}
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)]">
+                    {step.suggestRange ? `建议 ${formatRange(step.suggestRange)}` : '看状态'}
+                  </span>
+                )}
+                {heat ? (
+                  <span className="rounded-full bg-[var(--surface)] px-3 py-1 text-xs text-[var(--muted)]">
+                    {heat}
+                  </span>
+                ) : null}
+              </div>
+
+              <h1 className="mt-3 text-[clamp(1.6rem,7vw,2.25rem)] font-bold leading-tight tracking-tight">
+                {step.text}
+              </h1>
+
+              {body ? (
+                <p className="mt-2 text-[15px] leading-relaxed text-[var(--text)]/85">{body}</p>
+              ) : null}
+
+              {hint ? (
+                <p className="mt-2 text-xs leading-relaxed text-[var(--muted)]">{hint}</p>
               ) : null}
             </div>
 
-            <h1 className="mt-4 text-[clamp(1.75rem,8vw,2.5rem)] font-bold leading-snug tracking-tight">
-              {step.text}
-            </h1>
-
-            {step.tip ? (
-              <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-[var(--muted)]">
-                {step.tip}
-              </p>
-            ) : null}
+            <AssetImage
+              assetId={step.photoAssetId}
+              src={step.photoSrc}
+              alt={`第 ${state.stepIndex + 1} 步`}
+              className="mt-1 h-24 w-24 shrink-0 rounded-2xl object-cover ring-1 ring-[var(--line)]"
+            />
           </div>
 
           {timed ? (
@@ -340,7 +386,7 @@ export function Cook() {
                 <button
                   type="button"
                   onClick={handleExtend}
-                  className="mx-auto flex min-h-11 items-center justify-center rounded-full bg-white/5 px-4 text-sm text-[var(--accent-2)]"
+                  className="mx-auto flex min-h-11 items-center justify-center rounded-full bg-[var(--tint)] px-4 text-sm text-[var(--accent-2)]"
                 >
                   {state.stepState === 'awaiting' ? '再来 30 秒' : '+30 秒'}
                 </button>
@@ -401,6 +447,87 @@ export function Cook() {
           ) : null}
         </div>
       </footer>
+
+      <BottomSheet open={guideOpen} title="菜谱" onClose={() => setGuideOpen(false)}>
+        <div className="flex gap-2 rounded-2xl bg-[var(--tint)] p-1">
+          <button
+            type="button"
+            aria-pressed={guideTab === 'prep'}
+            onClick={() => setGuideTab('prep')}
+            className={
+              guideTab === 'prep'
+                ? 'min-h-11 flex-1 rounded-xl bg-[var(--surface)] text-sm font-medium'
+                : 'min-h-11 flex-1 rounded-xl text-sm text-[var(--muted)]'
+            }
+          >
+            备菜 {state.recipe.prep.length}
+          </button>
+          <button
+            type="button"
+            aria-pressed={guideTab === 'steps'}
+            onClick={() => setGuideTab('steps')}
+            className={
+              guideTab === 'steps'
+                ? 'min-h-11 flex-1 rounded-xl bg-[var(--surface)] text-sm font-medium'
+                : 'min-h-11 flex-1 rounded-xl text-sm text-[var(--muted)]'
+            }
+          >
+            步骤 {state.recipe.steps.length}
+          </button>
+        </div>
+
+        {guideTab === 'prep' ? (
+          state.recipe.prep.length > 0 ? (
+            <ul className="mt-4 space-y-2">
+              {state.recipe.prep.map((item, index) => (
+                <li key={item.id} className="rounded-2xl bg-[var(--tint)] p-3">
+                  <p className="text-sm leading-relaxed">
+                    <span className="mr-1 text-[var(--muted)]">{index + 1}.</span>
+                    {item.text}
+                  </p>
+                  {item.tip ? (
+                    <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">{item.tip}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 rounded-2xl bg-[var(--tint)] p-4 text-sm text-[var(--muted)]">
+              这道菜不用提前备菜。
+            </p>
+          )
+        ) : (
+          <ol className="mt-4 space-y-2">
+            {state.recipe.steps.map((item, index) => (
+              <li
+                key={item.id}
+                className={
+                  index === state.stepIndex
+                    ? 'rounded-2xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 p-3'
+                    : 'rounded-2xl bg-[var(--tint)] p-3'
+                }
+              >
+                <p className="text-sm font-medium leading-relaxed">
+                  <span className="mr-1 text-[var(--muted)]">{index + 1}.</span>
+                  {item.text}
+                </p>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  {isTimedStep(item)
+                    ? `本步 ${formatSeconds(item.durationSec)}`
+                    : item.suggestRange
+                      ? `建议 ${formatRange(item.suggestRange)}`
+                      : '看状态'}
+                  {index === state.stepIndex ? ' · 当前' : ''}
+                </p>
+              </li>
+            ))}
+          </ol>
+        )}
+
+        <p className="mt-4 text-xs leading-relaxed text-[var(--muted)]">
+          查看菜谱不会暂停计时，关掉就回到当前步骤。
+        </p>
+      </BottomSheet>
 
       <ConfirmSheet
         open={abortOpen}

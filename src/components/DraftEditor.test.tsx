@@ -10,7 +10,7 @@ const spec: DraftSpec = {
   prep: [{ text: '番茄切块' }],
   steps: [
     { text: '倒油烧热', kind: 'timed', durationSec: 45 },
-    { text: '炒至凝固', kind: 'judgment', suggestRange: [30, 60] },
+    { text: '炒至凝固', kind: 'timed', durationSec: 60 },
   ],
   questions: [],
 };
@@ -29,42 +29,59 @@ describe('DraftEditor', () => {
     expect(lastSpec(onChange).title).toBe('新名字');
   });
 
-  it('clears the duration when switching a step to judgment', () => {
+  it('updates a step duration', () => {
     const onChange = vi.fn();
     render(<DraftEditor spec={spec} onChange={onChange} />);
 
-    fireEvent.click(screen.getByRole('button', { name: '把第 1 步改为判断型' }));
+    fireEvent.change(screen.getByLabelText('第 1 步时长'), { target: { value: '90' } });
 
     const step = lastSpec(onChange).steps[0];
-    expect(step).toMatchObject({ kind: 'judgment', suggestRange: [30, 60] });
-    expect(step).not.toHaveProperty('durationSec');
+    expect(step).toMatchObject({ kind: 'timed', durationSec: 90 });
   });
 
-  it('adds a default duration when switching a step to timed', () => {
+  it('converts the input unit to seconds', () => {
     const onChange = vi.fn();
     render(<DraftEditor spec={spec} onChange={onChange} />);
 
-    fireEvent.click(screen.getByRole('button', { name: '把第 2 步改为定时型' }));
+    fireEvent.change(screen.getByLabelText('第 1 步时长单位'), { target: { value: 'min' } });
+    fireEvent.change(screen.getByLabelText('第 1 步时长'), { target: { value: '1.5' } });
 
-    const step = lastSpec(onChange).steps[1];
-    expect(step).toMatchObject({ kind: 'timed', durationSec: 30 });
-    expect(step).not.toHaveProperty('suggestRange');
+    expect(lastSpec(onChange).steps[0]).toMatchObject({ kind: 'timed', durationSec: 90 });
   });
 
-  it('appends a new step', () => {
+  it('no longer offers a judgment step type', () => {
+    render(<DraftEditor spec={spec} onChange={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: '把第 1 步改为判断型' })).toBeNull();
+    expect(screen.queryByLabelText('第 1 步建议下限')).toBeNull();
+  });
+
+  it('adds a tag with the add button for touch keyboards', () => {
+    const onChange = vi.fn();
+    render(<DraftEditor spec={spec} onChange={onChange} />);
+
+    fireEvent.change(screen.getByLabelText('新标签'), { target: { value: '快手菜' } });
+    fireEvent.click(screen.getByRole('button', { name: '添加标签' }));
+
+    expect(lastSpec(onChange).tags).toEqual(['快手菜']);
+  });
+
+  it('appends a timed step with a default duration', () => {
     const onChange = vi.fn();
     render(<DraftEditor spec={spec} onChange={onChange} />);
 
     fireEvent.click(screen.getByRole('button', { name: '加一步' }));
 
-    expect(lastSpec(onChange).steps).toHaveLength(3);
+    const steps = lastSpec(onChange).steps;
+    expect(steps).toHaveLength(3);
+    expect(steps[2]).toMatchObject({ kind: 'timed', durationSec: 30 });
   });
 
   it('does not allow deleting the last remaining step', () => {
     const onChange = vi.fn();
     render(
       <DraftEditor
-        spec={{ ...spec, steps: [{ text: '唯一一步', kind: 'judgment' }] }}
+        spec={{ ...spec, steps: [{ text: '唯一一步', kind: 'timed', durationSec: 30 }] }}
         onChange={onChange}
       />,
     );

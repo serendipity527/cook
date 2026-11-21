@@ -31,7 +31,7 @@ export function CountdownRing({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="var(--surface)"
+          stroke="var(--surface-2)"
           strokeWidth={stroke}
         />
         <circle

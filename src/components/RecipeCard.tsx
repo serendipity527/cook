@@ -14,11 +14,6 @@ export function RecipeCard({ recipe, onClick }: RecipeCardProps) {
       className="w-full rounded-3xl bg-[var(--surface)] p-5 text-left transition active:scale-[0.995]"
     >
       <div className="flex flex-wrap items-center gap-2">
-        {recipe.source === 'builtin' && (
-          <span className="rounded-full bg-white/5 px-2.5 py-1 text-[11px] text-[var(--muted)]">
-            内置
-          </span>
-        )}
         {recipe.tags.slice(0, 2).map((tag) => (
           <span
             key={tag}
@@ -38,7 +33,9 @@ export function RecipeCard({ recipe, onClick }: RecipeCardProps) {
       <div className="mt-3 flex items-center gap-4 text-xs text-[var(--muted)]">
         <span className="flex items-center gap-1.5">
           <Clock3 size={14} />
-          {recipe.estimatedMinutes ? `${recipe.estimatedMinutes} 分钟` : `${recipe.steps.length} 步`}
+          {recipe.estimatedMinutes
+            ? `${recipe.estimatedMinutes} 分钟`
+            : `${recipe.steps.length} 步`}
         </span>
         <span className="flex items-center gap-1.5">
           <Users size={14} />

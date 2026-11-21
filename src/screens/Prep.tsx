@@ -6,6 +6,7 @@ import { useRequestBack } from '@/navigation/NavigationProvider';
 import { useCook } from '@/runtime/CookProvider';
 import { useAppStore } from '@/store/useAppStore';
 import { BigButton } from '@/components/BigButton';
+import { AssetImage } from '@/components/AssetImage';
 import { ConfirmSheet } from '@/components/ConfirmSheet';
 
 export function Prep({ recipeId }: { recipeId: string }) {
@@ -77,7 +78,7 @@ export function Prep({ recipeId }: { recipeId: string }) {
       </button>
 
       <header className="mt-5">
-        <p className="text-xs tracking-[0.25em] text-[var(--accent)]">PREP</p>
+        <p className="text-xs tracking-[0.25em] text-[var(--accent-ink)]">PREP</p>
         <h1 className="mt-1 text-3xl font-bold tracking-tight">备菜</h1>
         <div className="mt-2 flex items-center justify-between gap-3">
           <p className="text-sm text-[var(--muted)]">
@@ -88,7 +89,7 @@ export function Prep({ recipeId }: { recipeId: string }) {
               type="button"
               onClick={() => dispatch({ type: 'SET_ALL_PREP' })}
               disabled={allChecked}
-              className="min-h-11 shrink-0 rounded-full bg-white/5 px-3 text-xs text-[var(--accent-2)] disabled:opacity-40"
+              className="min-h-11 shrink-0 rounded-full bg-[var(--tint)] px-3 text-xs text-[var(--accent-2)] disabled:opacity-40"
             >
               全部勾选
             </button>
@@ -123,8 +124,8 @@ export function Prep({ recipeId }: { recipeId: string }) {
                 <span
                   className={
                     isChecked
-                      ? 'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[#201008]'
-                      : 'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/20 text-transparent'
+                      ? 'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-contrast)]'
+                      : 'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[var(--line-strong)] text-transparent'
                   }
                 >
                   <Check size={16} strokeWidth={3} />
@@ -132,14 +133,20 @@ export function Prep({ recipeId }: { recipeId: string }) {
                 <span
                   className={
                     isChecked
-                      ? 'text-[15px] leading-relaxed opacity-50'
-                      : 'text-[15px] leading-relaxed'
+                      ? 'min-w-0 flex-1 text-[15px] leading-relaxed opacity-50'
+                      : 'min-w-0 flex-1 text-[15px] leading-relaxed'
                   }
                 >
                   {item.text}
                   {item.tip ? (
                     <span className="mt-1 block text-xs text-[var(--muted)]">{item.tip}</span>
                   ) : null}
+                  <AssetImage
+                    assetId={item.photoAssetId}
+                    src={item.photoSrc}
+                    alt={item.text}
+                    className="mt-2 h-20 w-28 rounded-xl object-cover"
+                  />
                 </span>
               </button>
             );
@@ -162,7 +169,7 @@ export function Prep({ recipeId }: { recipeId: string }) {
       <ConfirmSheet
         open={confirmOpen}
         title={`还有 ${remaining} 项没备好`}
-        description="炒菜中途没空切葱。建议备完再开火，不然锅里的火不会等你。"
+        description="锅里的火不会等人，建议备齐再开火。现在开火也可以，中途缺什么就得自己补。"
         cancelLabel="回去备齐"
         confirmLabel="仍然开火"
         tone="danger"

@@ -1,14 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChefHat, ChevronRight, Copy, PenLine, Plus, Search, Sparkles } from 'lucide-react';
-import { forkBuiltin, getRecipe, listAllRecipes, listSessions } from '@/data/repo';
+import { ChefHat, ChevronRight, Copy, Pencil, Plus, Search, Sparkles } from 'lucide-react';
+import type { Recipe } from '@shared/schema';
+import {
+  deleteRecipe,
+  duplicateRecipe,
+  forkBuiltin,
+  getRecipe,
+  listAllRecipes,
+  listSessions,
+  restoreRecipe,
+} from '@/data/repo';
 import { buildLibrary, matchesSearch } from '@/lib/library';
 import { formatAge, formatAgeLabel } from '@/lib/format';
 import { useCook } from '@/runtime/CookProvider';
 import { useAppStore } from '@/store/useAppStore';
 import { ActionSheet, type ActionSheetAction } from '@/components/ActionSheet';
 import { ConfirmSheet } from '@/components/ConfirmSheet';
-import { RecipeRow } from '@/components/RecipeRow';
+import { RecipeRow, type RecipeRowAction } from '@/components/RecipeRow';
 import { useToast } from '@/components/ToastProvider';
 
 export function Home() {
@@ -20,11 +29,13 @@ export function Home() {
   const [newOpen, setNewOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
   const [resumeConfirmOpen, setResumeConfirmOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Recipe | null>(null);
   const [recipeMissing, setRecipeMissing] = useState(false);
   const recipeRows = useLiveQuery(() => listAllRecipes(), []);
   const sessionRows = useLiveQuery(() => listSessions(), []);
   const recipes = useMemo(() => recipeRows ?? [], [recipeRows]);
   const sessions = useMemo(() => sessionRows ?? [], [sessionRows]);
+  const loading = recipeRows === undefined || sessionRows === undefined;
   const library = useMemo(() => buildLibrary(recipes, sessions), [recipes, sessions]);
   const visibleLibrary = useMemo(
     () => library.filter((entry) => matchesSearch(entry.recipe, query)),
@@ -32,7 +43,8 @@ export function Home() {
   );
   const mine = recipes.filter((recipe) => recipe.source !== 'builtin');
   const builtins = recipes.filter((recipe) => recipe.source === 'builtin');
-  const showGuide = mine.length === 0 && query.trim() === '';
+  const showGuide =
+    !loading && mine.length === 0 && sessions.length === 0 && query.trim() === '';
   const queryKey = query.trim().toLowerCase();
 
   useEffect(() => {
@@ -106,17 +118,94 @@ export function Home() {
     }
   };
 
+  const handleEdit = async (recipe: Recipe) => {
+    if (recipe.source !== 'builtin') {
+      navigate({ name: 'edit', recipeId: recipe.id });
+      return;
+    }
+
+    try {
+      const copy = await forkBuiltin(recipe.id);
+      showToast({ message: '已复制为我的菜谱，可以开始修改', tone: 'success' });
+      navigate({ name: 'edit', recipeId: copy.id });
+    } catch (copyError) {
+      console.error('[kaihuo] failed to copy a builtin recipe', copyError);
+      showToast({ message: '复制失败，请重试', tone: 'danger' });
+    }
+  };
+
+  const handleDuplicate = async (recipe: Recipe) => {
+    try {
+      const copy =
+        recipe.source === 'builtin'
+          ? await forkBuiltin(recipe.id)
+          : await duplicateRecipe(recipe.id);
+      showToast({ message: `已复制「${copy.title}」`, tone: 'success' });
+      navigate({ name: 'detail', recipeId: copy.id });
+    } catch (duplicateError) {
+      console.error('[kaihuo] failed to duplicate a recipe', duplicateError);
+      showToast({
+        message: duplicateError instanceof Error ? duplicateError.message : '复制失败，请重试',
+        tone: 'danger',
+      });
+    }
+  };
+
+  const handleDelete = async () => {
+    const recipe = pendingDelete;
+
+    if (!recipe) {
+      return;
+    }
+
+    setPendingDelete(null);
+
+    try {
+      await deleteRecipe(recipe.id);
+      showToast({
+        message: `已删除「${recipe.title}」`,
+        action: {
+          label: '撤销',
+          onClick: () => {
+            void restoreRecipe(recipe.id)
+              .then(() => showToast({ message: '已恢复', tone: 'success' }))
+              .catch(() => showToast({ message: '恢复失败，请重试', tone: 'danger' }));
+          },
+        },
+      });
+    } catch (deleteError) {
+      console.error('[kaihuo] failed to delete a recipe', deleteError);
+      showToast({ message: '删除失败，请重试', tone: 'danger' });
+    }
+  };
+
+  const rowActions = (recipe: Recipe): RecipeRowAction[] =>
+    recipe.source === 'builtin'
+      ? [
+          { label: '复制并编辑', onSelect: () => void handleEdit(recipe) },
+          { label: '复制一份', onSelect: () => void handleDuplicate(recipe) },
+        ]
+      : [
+          { label: '编辑', onSelect: () => void handleEdit(recipe) },
+          { label: '复制一份', onSelect: () => void handleDuplicate(recipe) },
+          {
+            label: '删除',
+            tone: 'danger',
+            onSelect: () => setPendingDelete(recipe),
+          },
+        ];
+
   const newActions: ActionSheetAction[] = [
     {
-      label: '和 AI 说一道菜',
-      description: '口述做法，自动整理成步骤',
+      label: '告诉 AI 一道菜',
+      description: '打几行字，自动整理成步骤',
       icon: <Sparkles size={18} />,
       onSelect: () => navigate({ name: 'chat' }),
     },
     {
       label: '手动填写',
       description: '适合已经会做的菜',
-      icon: <PenLine size={18} />,
+      icon: <Pencil size={18} />,
       onSelect: () => navigate({ name: 'edit' }),
     },
     {
@@ -140,10 +229,11 @@ export function Home() {
         <button
           type="button"
           onClick={() => navigate({ name: 'studio' })}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--surface)] text-[var(--muted)]"
+          className="flex h-12 shrink-0 items-center gap-2 rounded-full bg-[var(--surface)] px-4 text-sm text-[var(--muted)]"
           aria-label="我的厨房"
         >
-          <ChefHat size={20} />
+          <ChefHat size={18} />
+          厨房
         </button>
       </header>
 
@@ -189,15 +279,15 @@ export function Home() {
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold">第一次用开火？</span>
             <span className="mt-0.5 block text-xs leading-relaxed text-[var(--muted)]">
-              和 AI 说一道菜，或直接试下面的内置菜。
+              告诉 AI 一道菜，或直接试下面的内置菜。
             </span>
           </span>
           <button
             type="button"
             onClick={() => navigate({ name: 'chat' })}
-            className="min-h-12 shrink-0 rounded-xl bg-[var(--accent)] px-4 text-sm font-semibold text-[#201008]"
+            className="min-h-12 shrink-0 rounded-xl bg-[var(--accent)] px-4 text-sm font-semibold text-[var(--accent-contrast)]"
           >
-            和 AI 说
+            告诉 AI
           </button>
         </div>
       ) : null}
@@ -212,20 +302,35 @@ export function Home() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           aria-label="搜索菜谱"
-          placeholder="搜索菜谱…"
-          className="min-h-12 w-full rounded-2xl bg-[var(--surface)] pr-14 pl-11 text-base outline-none placeholder:text-[var(--muted)]"
+          placeholder="搜索菜名、标签或食材…"
+          className="min-h-12 w-full rounded-2xl bg-[var(--surface)] pr-24 pl-11 text-base outline-none placeholder:text-[var(--muted)]"
         />
         <button
           type="button"
           onClick={() => setNewOpen(true)}
           aria-label="新建菜谱"
-          className="absolute top-0 right-0 flex h-12 w-12 items-center justify-center rounded-2xl text-[var(--muted)]"
+          className="absolute top-0 right-0 flex h-12 items-center gap-1 rounded-2xl px-3 text-sm text-[var(--muted)]"
         >
-          <Plus size={20} />
+          <Plus size={18} />
+          新建
         </button>
       </div>
 
-      {visibleLibrary.length > 0 ? (
+      {loading ? (
+        <div className="space-y-1.5" aria-hidden="true">
+          {[0, 1, 2].map((item) => (
+            <div
+              key={item}
+              className="flex animate-pulse items-center gap-3 rounded-2xl bg-[var(--surface)] p-4"
+            >
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="h-4 w-1/3 rounded-full bg-[var(--tint-strong)]" />
+                <div className="h-3 w-1/2 rounded-full bg-[var(--tint)]" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : visibleLibrary.length > 0 ? (
         <div className="space-y-1.5">
           {visibleLibrary.map((entry) => {
             const matchedTags = queryKey
@@ -244,13 +349,14 @@ export function Home() {
                     ? () => navigate({ name: 'prep', recipeId: entry.recipe.id })
                     : undefined
                 }
+                actions={rowActions(entry.recipe)}
               />
             );
           })}
         </div>
       ) : (
-        <div className="rounded-3xl border border-dashed border-white/10 p-5 text-sm leading-relaxed text-[var(--muted)]">
-          没有匹配的菜谱。
+        <div className="rounded-3xl border border-dashed border-[var(--line)] p-5 text-sm leading-relaxed text-[var(--muted)]">
+          {query.trim() ? '没有匹配的菜谱。' : '还没有菜谱。'}
         </div>
       )}
 
@@ -265,6 +371,16 @@ export function Home() {
         title="复制哪道内置菜？"
         actions={copyActions}
         onClose={() => setCopyOpen(false)}
+      />
+      <ConfirmSheet
+        open={Boolean(pendingDelete)}
+        title={pendingDelete ? `删除「${pendingDelete.title}」？` : '删除这道菜？'}
+        description="菜谱会从列表移除，做菜记录不受影响。"
+        cancelLabel="取消"
+        confirmLabel="删除"
+        tone="danger"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => void handleDelete()}
       />
       <ConfirmSheet
         open={resumeConfirmOpen}

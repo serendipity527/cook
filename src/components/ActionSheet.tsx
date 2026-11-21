@@ -30,7 +30,7 @@ export function ActionSheet({ open, title, actions, onClose }: ActionSheetProps)
               onClose();
               action.onSelect();
             }}
-            className="flex min-h-16 w-full items-center gap-3 rounded-2xl bg-white/5 p-4 text-left transition active:scale-[0.995]"
+            className="flex min-h-16 w-full items-center gap-3 rounded-2xl bg-[var(--tint)] p-4 text-left transition active:scale-[0.995]"
           >
             {action.icon ? (
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)]/10 text-[var(--accent-2)]">

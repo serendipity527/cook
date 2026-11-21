@@ -5,9 +5,10 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'default' | 'compact';
 
 const styles: Record<Variant, string> = {
-  primary: 'bg-[var(--accent)] text-[#201008] shadow-lg shadow-orange-950/30',
+  primary:
+    'bg-[var(--accent)] text-[var(--accent-contrast)] shadow-lg shadow-orange-950/20',
   secondary: 'bg-[var(--surface)] text-[var(--text)]',
-  ghost: 'border border-white/10 bg-transparent text-[var(--text)]',
+  ghost: 'border border-[var(--line)] bg-transparent text-[var(--text)]',
   danger: 'bg-[var(--danger)]/15 text-[var(--danger)]',
 };
 

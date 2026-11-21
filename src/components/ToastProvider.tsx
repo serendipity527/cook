@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useAppStore } from '@/store/useAppStore';
 
 export interface ToastAction {
   label: string;
@@ -35,6 +36,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastState | null>(null);
   const timerRef = useRef<number | null>(null);
   const nextIdRef = useRef(0);
+  const viewName = useAppStore((state) => state.view.name);
+  // 做菜页底部是主操作区，Toast 放到顶部，避免挡住“下一步 / 暂停”。
+  const positionClass =
+    viewName === 'cook'
+      ? 'top-[calc(4.75rem+env(safe-area-inset-top))]'
+      : 'bottom-[calc(5.5rem+env(safe-area-inset-bottom))]';
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -72,7 +79,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       ? 'border-[var(--ok)]/50'
       : toast?.tone === 'danger'
         ? 'border-[var(--danger)]/50'
-        : 'border-white/10';
+        : 'border-[var(--line)]';
 
   return (
     <ToastContext.Provider value={{ showToast }}>
@@ -80,7 +87,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {toast
         ? createPortal(
             <div
-              className="pointer-events-none fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[60] flex justify-center px-4"
+              className={`pointer-events-none fixed inset-x-0 z-[60] flex justify-center px-4 ${positionClass}`}
               role="status"
               aria-live="polite"
             >

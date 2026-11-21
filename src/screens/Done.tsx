@@ -50,7 +50,7 @@ export function Done() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-10 pt-12">
       <header className="text-center">
-        <p className="text-xs font-medium tracking-[0.3em] text-[var(--accent)]">DONE</p>
+        <p className="text-xs font-medium tracking-[0.3em] text-[var(--accent-ink)]">DONE</p>
         <h1 className="mt-2 text-4xl font-bold tracking-tight">开饭了</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">{state.recipe.title}</p>
         {state.finishedEarly ? (
@@ -62,8 +62,11 @@ export function Done() {
 
       <section className="mt-8 grid grid-cols-2 gap-3">
         <Stat label="实际用时" value={formatSeconds(actualTotal)} />
-        <Stat label="计划用时" value={plannedTotal > 0 ? formatSeconds(plannedTotal) : '—'} />
+        <Stat label="计划计时" value={plannedTotal > 0 ? formatSeconds(plannedTotal) : '—'} />
       </section>
+      <p className="mt-2 text-center text-xs leading-relaxed text-[var(--muted)]">
+        计划计时只统计定时步骤；实际用时包含备菜、暂停和等待。
+      </p>
 
       {suggestions.length > 0 ? (
         <section className="mt-6 rounded-3xl border border-[var(--accent-2)]/30 bg-[var(--accent-2)]/5 p-5">

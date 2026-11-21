@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { ToastProvider } from './components/ToastProvider';
+import { applyTheme } from './lib/theme';
 import { NavigationProvider } from './navigation/NavigationProvider';
 import { CookProvider } from './runtime/CookProvider';
 import { useAppStore } from './store/useAppStore';
@@ -13,6 +15,11 @@ import { StudioChat } from './screens/StudioChat';
 
 export default function App() {
   const view = useAppStore((state) => state.view);
+  const theme = useAppStore((state) => state.theme);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
 
   return (
     <ToastProvider>

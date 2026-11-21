@@ -10,8 +10,10 @@ import {
   type DraftSpec,
 } from '@shared/schema';
 import { normalizeDraft } from '@/ai/normalizeDraft';
-import { listAllRecipes, requestPersistence, saveRecipe } from '@/data/repo';
+import { listAllRecipes, newId, requestPersistence, saveRecipe } from '@/data/repo';
 import { aiErrorMessage } from '@/lib/aiError';
+import { mergeDraftPhotos } from '@/lib/draftMedia';
+import { toTimedDraft } from '@/lib/timedSteps';
 import { useRequestBack } from '@/navigation/NavigationProvider';
 import { useAppStore } from '@/store/useAppStore';
 import { useChatStore } from '@/store/useChatStore';
@@ -52,7 +54,9 @@ export function StudioChat() {
   const [input, setInput] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [draftExpanded, setDraftExpanded] = useState(false);
   const lastSpecRef = useRef<DraftSpec | null>(null);
+  const draftRecipeIdRef = useRef<string>(newId('r'));
   const endRef = useRef<HTMLDivElement | null>(null);
   const sessionId = useMemo(getAiSessionId, []);
 
@@ -90,8 +94,9 @@ export function StudioChat() {
       appendMessage({ role: 'assistant', content: turn.reply });
 
       if (turn.draft) {
-        lastSpecRef.current = turn.draft;
-        setDraft(turn.draft);
+        const draft = toTimedDraft(mergeDraftPhotos(useChatStore.getState().draft, turn.draft));
+        lastSpecRef.current = draft;
+        setDraft(draft);
       }
 
       if (turn.intent === 'list_recipes') {
@@ -111,7 +116,8 @@ export function StudioChat() {
     },
   });
 
-  const parsedDraft = useMemo(() => DraftSpecSchema.safeParse(editedSpec), [editedSpec]);
+  const draftSpec = useMemo(() => (editedSpec ? toTimedDraft(editedSpec) : null), [editedSpec]);
+  const parsedDraft = useMemo(() => DraftSpecSchema.safeParse(draftSpec), [draftSpec]);
   const partialReply = typeof object?.reply === 'string' ? object.reply : '';
   const visibleRecipes = useMemo(
     () => recipes.filter((recipe) => visibleRecipeIds.includes(recipe.id)),
@@ -139,7 +145,7 @@ export function StudioChat() {
     const history = messages.slice(-10);
     appendMessage({ role: 'user', content: text });
 
-    const currentDraft = DraftSpecSchema.safeParse(editedSpec);
+    const currentDraft = DraftSpecSchema.safeParse(draftSpec);
 
     if (currentDraft.success) {
       lastSpecRef.current = currentDraft.data;
@@ -165,12 +171,14 @@ export function StudioChat() {
     setSaveError(null);
 
     try {
-      const recipe = normalizeDraft(parsedDraft.data);
+      const recipe = { ...normalizeDraft(parsedDraft.data), id: draftRecipeIdRef.current };
       await saveRecipe(recipe);
       void requestPersistence().catch(() => undefined);
+      draftRecipeIdRef.current = newId('r');
       resetChat();
       lastSpecRef.current = null;
       resetTo([{ name: 'home' }, { name: 'detail', recipeId: recipe.id }]);
+      setDraftExpanded(false);
     } catch (saveFailure) {
       setSaveError(saveFailure instanceof Error ? saveFailure.message : '保存失败，请重试');
     } finally {
@@ -185,6 +193,7 @@ export function StudioChat() {
     lastSpecRef.current = null;
     setInput('');
     setSaveError(null);
+    setDraftExpanded(false);
   };
 
   return (
@@ -202,7 +211,7 @@ export function StudioChat() {
           <button
             type="button"
             onClick={handleReset}
-            className="rounded-full bg-white/5 px-3 py-2 text-xs text-[var(--muted)]"
+            className="rounded-full bg-[var(--tint)] px-3 py-2 text-xs text-[var(--muted)]"
           >
             重新开始
           </button>
@@ -210,13 +219,16 @@ export function StudioChat() {
       </div>
 
       <header className="mt-5">
-        <p className="text-xs tracking-[0.25em] text-[var(--accent)]">AI STUDIO</p>
+        <p className="text-xs tracking-[0.25em] text-[var(--accent-ink)]">AI STUDIO</p>
         <h1 className="mt-1 text-3xl font-bold tracking-tight">厨房助手</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">可以聊天、查菜谱、录新菜。</p>
+        <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+          用文字描述就行，也可以用输入法的语音输入。
+        </p>
       </header>
 
       {messages.length === 0 && !editedSpec ? (
-        <section className="mt-8 rounded-3xl border border-white/10 p-6">
+        <section className="mt-8 rounded-3xl border border-[var(--line)] p-6">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--accent)]/15 text-[var(--accent-2)]">
             <Sparkles size={20} />
           </div>
@@ -230,7 +242,7 @@ export function StudioChat() {
                 key={action}
                 type="button"
                 onClick={() => sendMessage(action)}
-                className="rounded-full bg-white/5 px-3 py-2 text-xs text-[var(--text)]"
+                className="rounded-full bg-[var(--tint)] px-3 py-2 text-xs text-[var(--text)]"
               >
                 {action}
               </button>
@@ -248,7 +260,7 @@ export function StudioChat() {
             <p
               className={
                 message.role === 'user'
-                  ? 'max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--accent)] px-4 py-3 text-sm leading-relaxed text-[#201008]'
+                  ? 'max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[var(--accent)] px-4 py-3 text-sm leading-relaxed text-[var(--accent-contrast)]'
                   : 'max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-[var(--surface)] px-4 py-3 text-sm leading-relaxed'
               }
             >
@@ -290,15 +302,58 @@ export function StudioChat() {
         </section>
       ) : null}
 
-      {editedSpec ? (
-        <DraftEditor spec={editedSpec} onChange={setDraft} heading="菜谱草稿" />
+      {draftSpec ? (
+        draftExpanded ? (
+          <>
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setDraftExpanded(false)}
+                className="rounded-full bg-[var(--tint)] px-3 py-2 text-xs text-[var(--muted)]"
+              >
+                收起草稿
+              </button>
+            </div>
+            <DraftEditor
+              spec={draftSpec}
+              onChange={setDraft}
+              heading="菜谱草稿"
+              recipeId={draftRecipeIdRef.current}
+            />
+          </>
+        ) : (
+          <section className="mt-6 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="text-xs font-medium text-[var(--muted)]">菜谱草稿</h2>
+                <p className="mt-1 truncate text-lg font-semibold">
+                  {draftSpec.title || '未命名菜谱'}
+                </p>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  {draftSpec.servings} 人份 · {draftSpec.steps.length} 步
+                  {draftSpec.estimatedMinutes ? ` · 约 ${draftSpec.estimatedMinutes} 分钟` : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDraftExpanded(true)}
+                className="min-h-11 shrink-0 rounded-xl bg-[var(--tint-strong)] px-3 text-xs font-medium text-[var(--accent-2)]"
+              >
+                展开编辑
+              </button>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-[var(--muted)]">
+              可以直接保存；想改菜名、步骤或加图，点「展开编辑」。
+            </p>
+          </section>
+        )
       ) : null}
 
-      {editedSpec && editedSpec.questions.length > 0 ? (
+      {draftSpec && draftSpec.questions.length > 0 ? (
         <div className="mt-5 rounded-2xl bg-[var(--accent-2)]/10 p-4">
           <p className="text-xs font-medium text-[var(--accent-2)]">还可以补充</p>
           <ul className="mt-2 space-y-1.5">
-            {editedSpec.questions.map((question) => (
+            {draftSpec.questions.map((question) => (
               <li key={question} className="text-sm leading-relaxed text-[var(--text)]">
                 · {question}
               </li>
@@ -331,7 +386,7 @@ export function StudioChat() {
               type="button"
               onClick={() => (isLoading ? stop() : sendMessage(input))}
               disabled={!isLoading && input.trim().length === 0}
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)] text-[#201008] disabled:opacity-40"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--accent)] text-[var(--accent-contrast)] disabled:opacity-40"
               aria-label={isLoading ? '停止生成' : '发送'}
             >
               {isLoading ? <span className="text-xs font-semibold">停</span> : <Send size={18} />}
