@@ -116,6 +116,24 @@ describe('recipe repository', () => {
     expect(await getRecipe(copy.id)).toBeDefined();
   });
 
+  it('numbers repeated copies instead of failing on the title', async () => {
+    await saveRecipe(userRecipe);
+
+    const first = await duplicateRecipe(userRecipe.id);
+    const second = await duplicateRecipe(userRecipe.id);
+
+    expect(first.title).toBe('我的番茄炒蛋 副本');
+    expect(second.title).toBe('我的番茄炒蛋 副本 2');
+  });
+
+  it('numbers repeated builtin forks instead of failing on the title', async () => {
+    const first = await forkBuiltin(firstBuiltin.id);
+    const second = await forkBuiltin(firstBuiltin.id);
+
+    expect(first.title).toBe(firstBuiltin.title);
+    expect(second.title).toBe(`${firstBuiltin.title} 副本`);
+  });
+
   it('rejects a duplicate title among live user recipes', async () => {
     await saveRecipe(userRecipe);
 

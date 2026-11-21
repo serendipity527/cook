@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { Theme } from '@/lib/theme';
 
 export type View =
   | { name: 'home' }
@@ -18,11 +19,13 @@ interface NavigateOptions {
 interface AppState {
   view: View;
   stack: View[];
+  theme: Theme;
   speechEnabled: boolean;
   speechRate: number;
   navigate: (view: View, options?: NavigateOptions) => void;
   back: () => boolean;
   resetTo: (views: View[]) => void;
+  setTheme: (theme: Theme) => void;
   setSpeechEnabled: (enabled: boolean) => void;
   setSpeechRate: (rate: number) => void;
 }
@@ -36,6 +39,7 @@ export const useAppStore = create<AppState>()(
     (set, get) => ({
       view: { name: 'home' },
       stack: [],
+      theme: 'dark',
       speechEnabled: true,
       speechRate: 1.0,
       navigate: (view, options) =>
@@ -69,12 +73,14 @@ export const useAppStore = create<AppState>()(
 
         set({ view: target, stack: views.slice(0, -1) });
       },
+      setTheme: (theme) => set({ theme }),
       setSpeechEnabled: (speechEnabled) => set({ speechEnabled }),
       setSpeechRate: (speechRate) => set({ speechRate }),
     }),
     {
       name: 'kaihuo:settings',
       partialize: (state) => ({
+        theme: state.theme,
         speechEnabled: state.speechEnabled,
         speechRate: state.speechRate,
       }),

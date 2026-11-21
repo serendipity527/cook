@@ -1,4 +1,11 @@
-import { CookSessionSchema, RecipeSchema, type CookSession, type Recipe } from '@shared/schema';
+import {
+  AssetSchema,
+  CookSessionSchema,
+  RecipeSchema,
+  type Asset,
+  type CookSession,
+  type Recipe,
+} from '@shared/schema';
 import {
   buildExportBundle,
   mergeImport,
@@ -98,6 +105,31 @@ export async function restoreRecipe(id: string): Promise<Recipe | undefined> {
   return restored;
 }
 
+async function liveUserTitles(): Promise<Set<string>> {
+  const recipes = await db.recipes.toArray();
+  return new Set(
+    recipes
+      .filter((recipe) => recipe.deletedAt === undefined)
+      .map((recipe) => recipe.title.trim()),
+  );
+}
+
+function uniqueTitle(base: string, taken: Set<string>): string {
+  const trimmed = base.trim().slice(0, 40);
+
+  if (!taken.has(trimmed)) {
+    return trimmed;
+  }
+
+  let index = 2;
+
+  while (taken.has(`${trimmed} ${index}`.slice(0, 40))) {
+    index += 1;
+  }
+
+  return `${trimmed} ${index}`.slice(0, 40);
+}
+
 export async function duplicateRecipe(id: string): Promise<Recipe> {
   if (isBuiltinRecipe(id)) {
     return forkBuiltin(id);
@@ -110,10 +142,12 @@ export async function duplicateRecipe(id: string): Promise<Recipe> {
   }
 
   const now = Date.now();
+  const title = uniqueTitle(`${recipe.title} 副本`, await liveUserTitles());
+
   return saveRecipe({
     ...recipe,
     id: newId('r'),
-    title: `${recipe.title} 副本`.slice(0, 40),
+    title,
     source: 'user',
     createdAt: now,
     updatedAt: now,
@@ -128,14 +162,46 @@ export async function forkBuiltin(id: string): Promise<Recipe> {
     throw new Error('内置菜谱不存在');
   }
 
+  const taken = await liveUserTitles();
+  const title = uniqueTitle(taken.has(builtin.title) ? `${builtin.title} 副本` : builtin.title, taken);
   const now = Date.now();
+
   return saveRecipe({
     ...builtin,
     id: newId('r'),
+    title,
     source: 'user',
     createdAt: now,
     updatedAt: now,
   });
+}
+
+export async function getAsset(id: string): Promise<Asset | undefined> {
+  return db.assets.get(id);
+}
+
+export async function savePhotoAsset(input: {
+  recipeId: string;
+  blob: Blob;
+  mime?: string;
+  stepId?: string;
+}): Promise<Asset> {
+  const asset = AssetSchema.parse({
+    id: newId('a'),
+    recipeId: input.recipeId,
+    stepId: input.stepId,
+    kind: 'photo',
+    mime: input.mime || input.blob.type || 'image/jpeg',
+    blob: input.blob,
+    createdAt: Date.now(),
+  });
+
+  await db.assets.put(asset);
+  return asset;
+}
+
+export async function deleteAsset(id: string): Promise<void> {
+  await db.assets.delete(id);
 }
 
 export async function saveSession(input: CookSession): Promise<CookSession> {

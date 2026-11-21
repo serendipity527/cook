@@ -43,6 +43,7 @@ export function matchesSearch(recipe: Recipe, rawQuery: string): boolean {
 
   return (
     recipe.title.toLowerCase().includes(query) ||
-    recipe.tags.some((tag) => tag.toLowerCase().includes(query))
+    recipe.tags.some((tag) => tag.toLowerCase().includes(query)) ||
+    recipe.prep.some((item) => item.text.toLowerCase().includes(query))
   );
 }

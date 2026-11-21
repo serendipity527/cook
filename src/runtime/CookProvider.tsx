@@ -127,23 +127,44 @@ export function CookProvider({ children }: { children: ReactNode }) {
     rawDispatch({ type: 'prepare', recipe, now: Date.now() });
   }, []);
 
-  const begin = useCallback((recipe: Recipe) => {
-    void audio.unlock();
-    skipFirstSpeechRef.current = false;
-    savedSessionRef.current = null;
-    setResumeInfo(null);
-    clearSnapshot();
-    rawDispatch({ type: 'begin', recipe, now: Date.now() });
-  }, []);
+  const speakRecipeStep = useCallback(
+    (recipe: Recipe, index: number): boolean => {
+      const step = recipe.steps[index];
+
+      if (!step) {
+        return false;
+      }
+
+      void audio.unlock();
+      audio.speak(step.speak ?? step.text, { enabled: speechEnabled, rate: speechRate });
+      return true;
+    },
+    [speechEnabled, speechRate],
+  );
+
+  const begin = useCallback(
+    (recipe: Recipe) => {
+      void audio.unlock();
+      savedSessionRef.current = null;
+      setResumeInfo(null);
+      clearSnapshot();
+      // 第一步在点击手势里直接播报，移动端才不会拦截
+      skipFirstSpeechRef.current = speakRecipeStep(recipe, 0);
+      rawDispatch({ type: 'begin', recipe, now: Date.now() });
+    },
+    [speakRecipeStep],
+  );
 
   const startCooking = useCallback(() => {
+    const recipe = state?.recipe;
+
     void audio.unlock();
-    skipFirstSpeechRef.current = false;
     savedSessionRef.current = null;
     setResumeInfo(null);
     clearSnapshot();
+    skipFirstSpeechRef.current = recipe ? speakRecipeStep(recipe, 0) : false;
     rawDispatch({ type: 'start', now: Date.now() });
-  }, []);
+  }, [state?.recipe, speakRecipeStep]);
 
   const resume = useCallback(() => {
     const snapshot = peekSnapshot();
@@ -207,6 +228,20 @@ export function CookProvider({ children }: { children: ReactNode }) {
       });
   }, []);
 
+  useEffect(() => {
+    const unlock = () => {
+      void audio.unlock();
+    };
+
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
+
   useWakeLock(state?.phase === 'cooking');
 
   useEffect(() => {
@@ -267,7 +302,6 @@ export function CookProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      audio.stopSpeak();
       audio.speak(step.speak ?? step.text, { enabled: speechEnabled, rate: speechRate });
       return;
     }

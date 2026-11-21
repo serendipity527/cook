@@ -22,6 +22,16 @@ describe('formatSeconds', () => {
     expect(formatSeconds(90)).toBe('1 分 30 秒');
   });
 
+  it('shows hours for long durations', () => {
+    expect(formatSeconds(3600)).toBe('1 小时');
+    expect(formatSeconds(5400)).toBe('1 小时 30 分钟');
+  });
+
+  it('shows days for very long durations', () => {
+    expect(formatSeconds(86400)).toBe('1 天');
+    expect(formatSeconds(90000)).toBe('1 天 1 小时');
+  });
+
   it('never shows negative time', () => {
     expect(formatSeconds(-10)).toBe('0 秒');
   });

@@ -18,6 +18,7 @@ describe('recipeToDraft', () => {
 
     expect(spec.title).toBe(recipe.title);
     expect(spec.servings).toBe(recipe.servings);
+    expect(spec.tags).toEqual(recipe.tags);
     expect(spec.steps).toHaveLength(recipe.steps.length);
     expect(spec.steps[0]).not.toHaveProperty('id');
     expect(spec.prep[0]).not.toHaveProperty('id');
@@ -31,9 +32,7 @@ describe('recipeToDraft', () => {
     expect(rebuilt.source).toBe('user');
     expect(rebuilt.createdAt).toBe(100);
     expect(rebuilt.updatedAt).toBe(999);
-    expect(rebuilt.steps.map((step) => step.id)).toEqual(
-      recipe.steps.map((step) => step.id),
-    );
+    expect(rebuilt.steps.map((step) => step.id)).toEqual(recipe.steps.map((step) => step.id));
     expect(rebuilt.prep.map((item) => item.id)).toEqual(recipe.prep.map((item) => item.id));
   });
 });

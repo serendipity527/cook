@@ -54,6 +54,18 @@ describe('useAppStore navigation', () => {
     expect(useAppStore.getState().view).toEqual(home);
   });
 
+  it('persists the selected theme', () => {
+    useAppStore.getState().setTheme('light');
+
+    const persisted = JSON.parse(window.localStorage.getItem('kaihuo:settings') ?? '{}') as {
+      state?: Record<string, unknown>;
+    };
+
+    expect(persisted.state?.theme).toBe('light');
+
+    useAppStore.getState().setTheme('dark');
+  });
+
   it('does not persist the navigation stack', () => {
     const { navigate } = useAppStore.getState();
     navigate(detail);

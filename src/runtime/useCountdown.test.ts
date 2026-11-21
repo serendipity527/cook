@@ -16,6 +16,11 @@ describe('formatClock', () => {
     expect(formatClock(3_599_000)).toBe('59:59');
   });
 
+  it('adds an hours field for long countdowns', () => {
+    expect(formatClock(3_600_000)).toBe('1:00:00');
+    expect(formatClock(5_400_000)).toBe('1:30:00');
+  });
+
   it('never shows negative time', () => {
     expect(formatClock(-5000)).toBe('00:00');
   });

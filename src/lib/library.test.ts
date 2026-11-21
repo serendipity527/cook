@@ -63,4 +63,16 @@ describe('matchesSearch', () => {
     expect(matchesSearch(old, '快手菜'.toUpperCase())).toBe(true);
     expect(matchesSearch(old, '不存在')).toBe(false);
   });
+
+  it('matches by prep ingredients', () => {
+    const withEgg = recipe({
+      id: 'r_egg',
+      title: '番茄炒蛋',
+      prep: [{ id: 'p1', text: '鸡蛋 3 个，打散' }],
+    });
+
+    expect(matchesSearch(withEgg, '鸡蛋')).toBe(true);
+    expect(matchesSearch(withEgg, '打散')).toBe(true);
+    expect(matchesSearch(withEgg, '牛肉')).toBe(false);
+  });
 });

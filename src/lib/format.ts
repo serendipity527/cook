@@ -5,10 +5,24 @@ export function formatSeconds(totalSeconds: number): string {
     return `${seconds} 秒`;
   }
 
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
+  if (seconds < 60 * 60) {
+    const minutes = Math.floor(seconds / 60);
+    const rest = seconds % 60;
 
-  return rest === 0 ? `${minutes} 分钟` : `${minutes} 分 ${rest} 秒`;
+    return rest === 0 ? `${minutes} 分钟` : `${minutes} 分 ${rest} 秒`;
+  }
+
+  const hours = Math.floor(seconds / (60 * 60));
+  const restMinutes = Math.floor((seconds % (60 * 60)) / 60);
+
+  if (hours < 24) {
+    return restMinutes === 0 ? `${hours} 小时` : `${hours} 小时 ${restMinutes} 分钟`;
+  }
+
+  const days = Math.floor(hours / 24);
+  const restHours = hours % 24;
+
+  return restHours === 0 ? `${days} 天` : `${days} 天 ${restHours} 小时`;
 }
 
 export function formatRange(range: [number, number]): string {
